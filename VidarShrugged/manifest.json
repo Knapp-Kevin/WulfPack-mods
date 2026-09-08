@@ -1,0 +1,9 @@
+{
+  "name": "VidarShrugged",
+  "version_number": "0.1.0",
+  "website_url": "https://github.com/Knapp-Kevin/WulfPack-mods/tree/main/VidarShrugged",
+  "description": "Large-build performance instrumentation and optimization for Valheim. Build Asgard. Keep your frames.",
+  "dependencies": [
+    "denikson-BepInExPack_Valheim-5.4.2333"
+  ]
+}
