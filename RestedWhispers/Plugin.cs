@@ -104,27 +104,38 @@ public sealed class Plugin : BaseUnityPlugin
         float finalThreshold = Mathf.Max(0f, _finalWarningSeconds.Value);
         float firstThreshold = Mathf.Max(finalThreshold, _firstWarningSeconds.Value);
 
+        // Latch only once the message is actually delivered. If the HUD is not
+        // up yet, leaving the flag clear lets the next poll retry instead of
+        // losing the warning for the rest of the Rested cycle.
         if (!_finalWarningShown && remaining <= finalThreshold)
         {
-            _finalWarningShown = true;
-            _firstWarningShown = true;
-            Notify("You long for the warmth of a fire.");
+            if (Notify("You long for the warmth of a fire."))
+            {
+                _finalWarningShown = true;
+                _firstWarningShown = true;
+            }
+
             return;
         }
 
         if (!_firstWarningShown && remaining <= firstThreshold)
         {
-            _firstWarningShown = true;
-            Notify("You're getting tired.");
+            if (Notify("You're getting tired."))
+            {
+                _firstWarningShown = true;
+            }
         }
     }
 
-    private void Notify(string message)
+    private bool Notify(string message)
     {
-        if (MessageHud.instance != null)
+        if (MessageHud.instance == null)
         {
-            MessageHud.instance.ShowMessage(_messagePosition.Value, message);
+            return false;
         }
+
+        MessageHud.instance.ShowMessage(_messagePosition.Value, message);
+        return true;
     }
 
     private void ResetState()

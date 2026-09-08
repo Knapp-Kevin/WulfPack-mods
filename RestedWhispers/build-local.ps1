@@ -27,7 +27,7 @@ function Get-SteamLibraryRoot {
         try { $p = Get-ItemProperty -Path $key -ErrorAction Stop } catch { continue }
         foreach ($prop in @("SteamPath", "InstallPath")) {
             $v = $p.$prop
-            if ($v -and (Test-Path $v)) { return ([string]$v).Replace("/", "\") }
+            if ($v -and (Test-Path -LiteralPath $v)) { return ([string]$v).Replace("/", "\") }
         }
     }
     return $null
@@ -39,8 +39,8 @@ function Find-ValheimRoot {
     if ($steam) {
         $candidates.Add((Join-Path $steam "steamapps\common\Valheim"))
         $vdf = Join-Path $steam "steamapps\libraryfolders.vdf"
-        if (Test-Path $vdf) {
-            foreach ($m in [regex]::Matches((Get-Content $vdf -Raw), '"path"\s+"([^"]+)"')) {
+        if (Test-Path -LiteralPath $vdf) {
+            foreach ($m in [regex]::Matches((Get-Content -LiteralPath $vdf -Raw), '"path"\s+"([^"]+)"')) {
                 $lib = $m.Groups[1].Value -replace '\\\\', '\'
                 $candidates.Add((Join-Path $lib "steamapps\common\Valheim"))
             }
@@ -49,7 +49,7 @@ function Find-ValheimRoot {
     $candidates.AddRange([string[]]@("C:\Program Files (x86)\Steam\steamapps\common\Valheim",
                                     "C:\Program Files\Steam\steamapps\common\Valheim"))
     foreach ($c in $candidates) {
-        if ((Test-Path $c) -and (Test-Path (Join-Path $c "valheim_Data\Managed\assembly_valheim.dll"))) {
+        if ((Test-Path -LiteralPath $c) -and (Test-Path -LiteralPath (Join-Path $c "valheim_Data\Managed\assembly_valheim.dll"))) {
             return $c
         }
     }
@@ -59,11 +59,11 @@ function Find-ValheimRoot {
 function Resolve-Paths {
     param([string]$Root)
     if ([string]::IsNullOrWhiteSpace($Root)) { $Root = Find-ValheimRoot }
-    if ([string]::IsNullOrWhiteSpace($Root) -or -not (Test-Path $Root)) {
+    if ([string]::IsNullOrWhiteSpace($Root) -or -not (Test-Path -LiteralPath $Root)) {
         throw "Valheim installation not found. Pass -ValheimRoot 'C:\path\to\Valheim'."
     }
     $bepInEx = Join-Path $Root "BepInEx"
-    if (-not (Test-Path $bepInEx)) {
+    if (-not (Test-Path -LiteralPath $bepInEx)) {
         throw "No BepInEx directory under '$Root'. Install BepInExPack for Valheim first."
     }
     return [pscustomobject]@{
@@ -121,7 +121,7 @@ function Move-OwnedDir {
     }
     $parent = Split-Path $To -Parent
     if (-not (Test-Path -LiteralPath $parent)) {
-        New-Item -ItemType Directory -Force -Path $parent | Out-Null
+        [void][IO.Directory]::CreateDirectory($parent)
     }
     Move-Item -LiteralPath $From -Destination $To -Force
 }
@@ -149,10 +149,10 @@ function Invoke-Build {
     if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
         throw ".NET SDK was not found on PATH. Install a .NET SDK before building Rested Whispers."
     }
-    if (-not (Test-Path (Join-Path $Paths.Managed "assembly_valheim.dll"))) {
+    if (-not (Test-Path -LiteralPath (Join-Path $Paths.Managed "assembly_valheim.dll"))) {
         throw "assembly_valheim.dll was not found under $($Paths.Managed)."
     }
-    if (-not (Test-Path (Join-Path $Paths.Core "BepInEx.dll"))) {
+    if (-not (Test-Path -LiteralPath (Join-Path $Paths.Core "BepInEx.dll"))) {
         throw "BepInEx.dll was not found under $($Paths.Core). Install BepInExPack for Valheim first."
     }
     $env:VALHEIM_MANAGED = $Paths.Managed
@@ -162,7 +162,7 @@ function Invoke-Build {
     dotnet build (Join-Path $PSScriptRoot "RestedWhispers.csproj") -c Release | Out-Host
     if ($LASTEXITCODE -ne 0) { throw "Rested Whispers build failed." }
     $dll = Join-Path $PSScriptRoot "bin\Release\netstandard2.1\RestedWhispers.dll"
-    if (-not (Test-Path $dll)) {
+    if (-not (Test-Path -LiteralPath $dll)) {
         throw "Build reported success, but RestedWhispers.dll was not found at $dll."
     }
     Write-Host "Built: $dll"
@@ -235,8 +235,8 @@ switch ($PSCmdlet.ParameterSetName) {
     }
     "Install" {
         $dll = Invoke-Build -Paths $paths
-        New-Item -ItemType Directory -Force -Path $paths.PluginDir | Out-Null
-        try { Copy-Item $dll (Join-Path $paths.PluginDir "RestedWhispers.dll") -Force }
+        [void][IO.Directory]::CreateDirectory($paths.PluginDir)
+        try { Copy-Item -LiteralPath $dll -Destination (Join-Path $paths.PluginDir "RestedWhispers.dll") -Force }
         catch [System.IO.IOException] { throw "The installed DLL is still locked. Fully quit Valheim, wait a few seconds, then re-run." }
         Write-Host "Installed: $($paths.PluginDir)\RestedWhispers.dll"
         # Never leave an enabled copy and a disabled copy side by side.

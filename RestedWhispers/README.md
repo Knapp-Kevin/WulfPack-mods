@@ -40,6 +40,12 @@ Each message fires at most once per Rested cycle, and re-acquiring Rested arms
 both again. If the mod first sees Rested when you are already below the final
 threshold, only the final warning fires — you do not get both at once.
 
+Two exceptions to "once per cycle", both deliberate. Toggling `Enabled` off and
+back on re-arms both warnings, so they can fire a second time within the same
+Rested cycle — that is what makes re-enabling behave like a fresh start rather
+than a dead mod. And a warning whose message could not be delivered (the HUD not
+yet being up) is retried on the next poll rather than being marked as shown.
+
 If you ran an earlier build, your config file may still contain a
 `NotifyOnExpiration` entry. It is inert and can be deleted; BepInEx keeps
 orphaned keys rather than removing them.
@@ -114,11 +120,15 @@ Moves the folder back and removes the now-empty `plugins-disabled` directory.
 .\RestedWhispers\build-local.ps1 -Uninstall
 ```
 
-Deletes exactly three paths, and nothing else:
+Deletes exactly these three paths:
 
 1. `<Valheim>\BepInEx\plugins\RestedWhispers\`
 2. `<Valheim>\BepInEx\plugins-disabled\RestedWhispers\`
 3. `<Valheim>\BepInEx\config\com.wulfpack.restedwhispers.cfg`
+
+Plus one more, only when it is left empty: the `plugins-disabled` directory
+itself, if this mod's removal emptied it. It is deleted only when it contains
+nothing at all, so a plugin someone else parked there is never destroyed.
 
 There are no wildcards. Every deletion goes through a single guarded function
 that refuses any path whose final component is not the expected name, and
