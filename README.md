@@ -12,6 +12,7 @@ WulfPack Mods is the in-game modding side of the broader WulfPack Valheim projec
   - [Rested Whispers](#rested-whispers)
   - [Rune Compass](#rune-compass)
   - [Pied Piper](#pied-piper)
+  - [Vidar Shrugged](#vidar-shrugged)
 - [Repository structure](#repository-structure)
 - [Project family](#project-family)
 - [Design principles](#design-principles)
@@ -26,6 +27,7 @@ WulfPack Mods is the in-game modding side of the broader WulfPack Valheim projec
 | **Rested Whispers** | Gentle, native Valheim warnings as the Rested effect fades. | ✅ Implemented, tested, validated | [README](RestedWhispers/README.md) |
 | **Rune Compass** | Immersive No Map navigation with heading and live wind direction. | 🧪 First playable implementation merged; local gameplay validation remains | [README](RuneCompass/README.md) · [Implementation plan](RuneCompass/IMPLEMENTATION_PLAN.md) · [Status](RuneCompass/STATUS.md) |
 | **Pied Piper** | One consistent Follow / Stay command for eligible tamed creatures. | 🧱 Repository mesh established; API discovery next | [README](PiedPiper/README.md) · [Implementation plan](PiedPiper/IMPLEMENTATION_PLAN.md) · [Status](PiedPiper/STATUS.md) |
+| **Vidar Shrugged** | Large-settlement performance instrumentation and optimization. | 🧱 Gate 0 foundation implementation | [README](VidarShrugged/README.md) · [Implementation plan](VidarShrugged/IMPLEMENTATION_PLAN.md) · [Benchmark plan](VidarShrugged/BENCHMARK_PLAN.md) · [Status](VidarShrugged/STATUS.md) |
 
 ### Rested Whispers
 
@@ -93,6 +95,32 @@ The repository mesh is established before gameplay code begins so API discovery,
 → [Current status](PiedPiper/STATUS.md)  
 → [Implementation tracker #6](https://github.com/Knapp-Kevin/WulfPack-mods/issues/6)
 
+### Vidar Shrugged
+
+**Build Asgard. Keep your frames.**
+
+Vidar Shrugged is the fourth resident mod and a deliberately larger project than the preceding WulfPack utilities. It targets the performance ceiling created by extraordinarily dense settlements, where tens of thousands of construction pieces can overlap with rendering, simulation, lights, particles, streaming, and multiplayer work in the same active area.
+
+Its product boundary is specific: **large-settlement scalability, not generic graphics tweaking.**
+
+The initial Gate 0 implementation is intentionally read-only and includes:
+
+- rolling frame-time diagnostics with tail-percentile reporting
+- optional active-scene pressure snapshots
+- a cooperative frame-budget work queue for future bounded analysis and rebuild tasks
+- a benchmark ladder culminating in a roughly 40,000-piece **Asgard** scenario
+- explicit architecture gates that keep aggressive lifecycle changes out of the stable foundation
+- local install / disable / enable / status / uninstall tooling
+- no Harmony patches, save mutation, networking changes, or world-state mutation in Gate 0
+
+Future gates investigate sector indexing, safe object classification, distance-aware throttling, GPU instancing, render clustering, deterministic caches, progressive streaming, and HLOD-style distant settlement representations. More invasive ideas such as WearNTear suppression, ZSyncTransform suppression, zone retention, and prefab prewarming remain experimental until evidence justifies their compatibility cost.
+
+→ [Vidar Shrugged documentation](VidarShrugged/README.md)  
+→ [Implementation plan](VidarShrugged/IMPLEMENTATION_PLAN.md)  
+→ [Benchmark plan](VidarShrugged/BENCHMARK_PLAN.md)  
+→ [Current status](VidarShrugged/STATUS.md)  
+→ [Gate 0 tracker #10](https://github.com/Knapp-Kevin/WulfPack-mods/issues/10)
+
 ## Repository structure
 
 Each mod lives in its own top-level folder and remains independently buildable, packageable, testable, and removable.
@@ -123,11 +151,23 @@ WulfPack-mods/
 │   ├── STATUS.md
 │   └── Assets/
 │       └── Skins/
-└── PiedPiper/
+├── PiedPiper/
+│   ├── README.md
+│   ├── IMPLEMENTATION_PLAN.md
+│   ├── STATUS.md
+│   └── manifest.json
+└── VidarShrugged/
+    ├── Plugin.cs
+    ├── FrameMetrics.cs
+    ├── ActiveSceneCounter.cs
+    ├── CooperativeWorkQueue.cs
+    ├── VidarShrugged.csproj
+    ├── build-local.ps1
+    ├── manifest.json
     ├── README.md
     ├── IMPLEMENTATION_PLAN.md
-    ├── STATUS.md
-    └── manifest.json
+    ├── BENCHMARK_PLAN.md
+    └── STATUS.md
 ```
 
 Shared tooling should be introduced only when it clearly reduces duplication without coupling otherwise independent mods.
@@ -155,6 +195,7 @@ That boundary is deliberate. Features that belong outside the game should not be
 - Prefer native game behavior over replacement systems. Pied Piper should adapt Valheim's tame/follow machinery rather than invent custom pathfinding unless proven necessary.
 - Treat installed Valheim assemblies as authoritative. Historical mod source is reference material, not a contract.
 - Document verified behavior separately from implementation assumptions.
+- For performance work, optimize measured bottlenecks rather than proxy counts or intuition alone.
 
 ## Local build and validation policy
 
@@ -196,4 +237,5 @@ Add the new mod to the table in [Current mods](#current-mods), then keep its det
 - **Rested Whispers:** ✅ implemented, tested, validated, and accepted.
 - **Rune Compass:** 🧪 first playable implementation is in the repository; local compile and in-game validation remain tracked in issue #4.
 - **Pied Piper:** 🧱 repository mesh is established; authoritative Valheim tame/follow API discovery is the next gate in issue #6.
+- **Vidar Shrugged:** 🧱 Gate 0 foundation is implemented on `feature/vidar-shrugged-foundation`; compile and in-game baseline validation remain tracked in issue #10.
 - **GitHub Actions:** prohibited. Zero runs expected.
