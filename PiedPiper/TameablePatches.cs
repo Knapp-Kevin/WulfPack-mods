@@ -1,4 +1,3 @@
-using System;
 using System.Reflection;
 using HarmonyLib;
 
@@ -24,7 +23,7 @@ internal static class TameablePatches
         }
     }
 
-    [HarmonyPatch(typeof(Tameable), nameof(Tameable.Interact))]
+    [HarmonyPatch(typeof(Tameable), nameof(Tameable.Interact), new[] { typeof(Humanoid), typeof(bool), typeof(bool) })]
     private static class TameableInteractPatch
     {
         private static void Prefix(Tameable __instance, ref CommandGuardState __state)
