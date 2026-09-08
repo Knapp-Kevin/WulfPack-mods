@@ -11,6 +11,7 @@ WulfPack Mods is the in-game modding side of the broader WulfPack Valheim projec
 - [Current mods](#current-mods)
   - [Rested Whispers](#rested-whispers)
   - [Rune Compass](#rune-compass)
+  - [Pied Piper](#pied-piper)
 - [Repository structure](#repository-structure)
 - [Project family](#project-family)
 - [Design principles](#design-principles)
@@ -24,6 +25,7 @@ WulfPack Mods is the in-game modding side of the broader WulfPack Valheim projec
 | --- | --- | --- | --- |
 | **Rested Whispers** | Gentle, native Valheim warnings as the Rested effect fades. | ✅ Implemented, tested, validated | [README](RestedWhispers/README.md) |
 | **Rune Compass** | Immersive No Map navigation with heading and live wind direction. | 🧪 First playable implementation merged; local gameplay validation remains | [README](RuneCompass/README.md) · [Implementation plan](RuneCompass/IMPLEMENTATION_PLAN.md) · [Status](RuneCompass/STATUS.md) |
+| **Pied Piper** | One consistent Follow / Stay command for eligible tamed creatures. | 🧱 Repository mesh established; API discovery next | [README](PiedPiper/README.md) · [Implementation plan](PiedPiper/IMPLEMENTATION_PLAN.md) · [Status](PiedPiper/STATUS.md) |
 
 ### Rested Whispers
 
@@ -68,6 +70,29 @@ The final visual system is designed around interchangeable presentation-only ski
 → [Implementation plan](RuneCompass/IMPLEMENTATION_PLAN.md)  
 → [Current status](RuneCompass/STATUS.md)
 
+### Pied Piper
+
+Pied Piper is the third resident mod. Its entire job is to make eligible tamed creatures obey one consistent **Follow / Stay** command without turning into a general pet-management framework.
+
+Initial target creature families:
+
+- wolf
+- boar
+- hen / chicken
+- lox
+- asksvin
+
+The implementation will prefer Valheim's native tame/follow machinery and preserve vanilla wolf behavior where practical. Rideable tameables such as lox and asksvin must not be forced into Follow while saddle/riding behavior owns movement.
+
+Pied Piper deliberately excludes teleporting pets, formations, mass-radius commands, breeding automation, pet inventory, stat changes, custom pathfinding, and other tame-overhaul features from v0.1.
+
+The repository mesh is established before gameplay code begins so API discovery, implementation, validation, and future creature compatibility have an explicit home.
+
+→ [Pied Piper documentation](PiedPiper/README.md)  
+→ [Implementation plan](PiedPiper/IMPLEMENTATION_PLAN.md)  
+→ [Current status](PiedPiper/STATUS.md)  
+→ [Implementation tracker #6](https://github.com/Knapp-Kevin/WulfPack-mods/issues/6)
+
 ## Repository structure
 
 Each mod lives in its own top-level folder and remains independently buildable, packageable, testable, and removable.
@@ -83,21 +108,26 @@ WulfPack-mods/
 │   ├── manifest.json
 │   ├── icon.png
 │   └── README.md
-└── RuneCompass/
-    ├── Plugin.cs
-    ├── CompassController.cs
-    ├── CompassUI.cs
-    ├── HeadingProvider.cs
-    ├── WindProvider.cs
-    ├── RuneCompass.csproj
-    ├── build-local.ps1
-    ├── manifest.json
-    ├── icon.png
+├── RuneCompass/
+│   ├── Plugin.cs
+│   ├── CompassController.cs
+│   ├── CompassUI.cs
+│   ├── HeadingProvider.cs
+│   ├── WindProvider.cs
+│   ├── RuneCompass.csproj
+│   ├── build-local.ps1
+│   ├── manifest.json
+│   ├── icon.png
+│   ├── README.md
+│   ├── IMPLEMENTATION_PLAN.md
+│   ├── STATUS.md
+│   └── Assets/
+│       └── Skins/
+└── PiedPiper/
     ├── README.md
     ├── IMPLEMENTATION_PLAN.md
     ├── STATUS.md
-    └── Assets/
-        └── Skins/
+    └── manifest.json
 ```
 
 Shared tooling should be introduced only when it clearly reduces duplication without coupling otherwise independent mods.
@@ -122,6 +152,7 @@ That boundary is deliberate. Features that belong outside the game should not be
 - Prefer native Valheim UI and behavior where practical.
 - Keep every mod independently removable without damaging a vanilla character or world whenever possible.
 - Keep presentation systems separate from gameplay logic. Rune Compass skins are the first explicit example.
+- Prefer native game behavior over replacement systems. Pied Piper should adapt Valheim's tame/follow machinery rather than invent custom pathfinding unless proven necessary.
 - Treat installed Valheim assemblies as authoritative. Historical mod source is reference material, not a contract.
 - Document verified behavior separately from implementation assumptions.
 
@@ -133,7 +164,7 @@ Do not add `.github/workflows`, hosted CI jobs, scheduled Actions, release Actio
 
 Builds, tests, packaging, install-state checks, and in-game validation are performed locally unless an explicitly approved non-Actions mechanism is introduced later.
 
-Each mod owns its local workflow. In general:
+Each implemented mod owns its local workflow. In general:
 
 ```powershell
 .\<ModName>\build-local.ps1
@@ -150,10 +181,11 @@ The scripts are expected to manage only their own files and leave unrelated BepI
 
 A new mod should begin as a separate top-level directory with its own:
 
-- source and project file
+- source and project file once implementation begins
 - README
+- implementation/status documentation while the design is still moving
 - Thunderstore manifest and icon when appropriate
-- local build/install/remove workflow
+- local build/install/remove workflow before playable validation
 - explicit scope and non-goals
 - validation evidence
 
@@ -163,4 +195,5 @@ Add the new mod to the table in [Current mods](#current-mods), then keep its det
 
 - **Rested Whispers:** ✅ implemented, tested, validated, and accepted.
 - **Rune Compass:** 🧪 first playable implementation is in the repository; local compile and in-game validation remain tracked in issue #4.
+- **Pied Piper:** 🧱 repository mesh is established; authoritative Valheim tame/follow API discovery is the next gate in issue #6.
 - **GitHub Actions:** prohibited. Zero runs expected.
