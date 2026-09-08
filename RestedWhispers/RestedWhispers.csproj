@@ -7,6 +7,7 @@
     <AssemblyName>RestedWhispers</AssemblyName>
     <RootNamespace>WulfPack.RestedWhispers</RootNamespace>
     <Version>0.1.0</Version>
+    <Deterministic>true</Deterministic>
   </PropertyGroup>
 
   <ItemGroup>
@@ -27,5 +28,8 @@
   <Target Name="ValidateValheimReferences" BeforeTargets="ResolveReferences">
     <Error Condition="'$(BEPINEX_CORE)' == ''" Text="Set BEPINEX_CORE to the BepInEx/core directory for your Valheim installation." />
     <Error Condition="'$(VALHEIM_MANAGED)' == ''" Text="Set VALHEIM_MANAGED to valheim_Data/Managed for your Valheim installation." />
+    <Error Condition="'$(BEPINEX_CORE)' != '' and !Exists('$(BEPINEX_CORE)/BepInEx.dll')" Text="BepInEx.dll was not found under BEPINEX_CORE." />
+    <Error Condition="'$(VALHEIM_MANAGED)' != '' and !Exists('$(VALHEIM_MANAGED)/assembly_valheim.dll')" Text="assembly_valheim.dll was not found under VALHEIM_MANAGED." />
+    <Error Condition="'$(VALHEIM_MANAGED)' != '' and !Exists('$(VALHEIM_MANAGED)/UnityEngine.CoreModule.dll')" Text="UnityEngine.CoreModule.dll was not found under VALHEIM_MANAGED." />
   </Target>
 </Project>
