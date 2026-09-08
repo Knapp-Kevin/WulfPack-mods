@@ -54,7 +54,13 @@ public sealed class Plugin : BaseUnityPlugin
 
     private void Update()
     {
-        if (!_enabled.Value || Time.unscaledTime < _nextPollTime)
+        if (!_enabled.Value)
+        {
+            ResetState();
+            return;
+        }
+
+        if (Time.unscaledTime < _nextPollTime)
         {
             return;
         }
