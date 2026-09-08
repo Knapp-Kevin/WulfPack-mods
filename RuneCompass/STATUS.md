@@ -186,29 +186,44 @@ rotation evidence above comes from operator screenshots rather than from the har
 `ConfigWatcher` exists to make the rest cheap: with the game already in a world, config can
 be retuned live instead of costing a relaunch plus a world load per value.
 
-## Legibility finding: rotating glyphs
+## Orientation reversed: heading-up to north-up
 
-The cardinal letters are children of the rose, so they rotate with the card. At southerly
-headings they are upside down (`E` as `Ǝ`, `W` as `M`, `N` inverted).
+Seeing ClassicWood on screen changed the product decision, and the in-game view is better
+evidence than the earlier argument was.
 
-This is faithful to a physical compass card, and it is the wrong call for a HUD read at a
-glance. The fix is to counter-rotate each glyph by `-heading` so the letters stay upright
-while their *positions* still travel around the ring. The card still rotates; only the
-glyph orientation is pinned. This costs one transform per letter and changes no bearing
-math.
+`N` is now fixed at 12 o'clock and the card never moves. A heading marker rides the rim to
+the bearing the player faces; the wind pointer sits at the centre. That is how a compass is
+normally read.
 
-Carried into the visual cycle rather than patched here, so the change lands with the
-artwork that replaces these placeholder glyphs.
+Two things drove it. The cardinal glyphs are **baked into `ring.png`**, so a rotating card
+put `E` and `W` upside down on southerly headings — the legibility problem first seen at
+heading 178 with the placeholder glyphs, which the artwork reproduced rather than solved.
+And a fixed north is simply the familiar reading.
+
+The code got simpler, not more complex:
+
+| | heading-up | north-up |
+|---|---|---|
+| rotation mappings | two (`RoseRotationZ`, `WindRotationZ`) | **one** (`BearingRotationZ`) |
+| card | rotates by `+heading` | **static** |
+| glyphs | counter-rotated to stay upright | upright by construction |
+| indicator placement | relative to where the player looks | **absolute world bearing** |
+
+Every indicator is handed a world bearing and rendered at `z = -bearing`. Nothing needs to
+know where the player is looking, so adding an indicator is handing it a bearing.
+
+**No redundant heading pointer was added.** The skin's `lubber_marker.png` — a brass chevron
+drawn at the rim — becomes the rotating heading index, which is what the art already was.
+Heading and wind stay distinguishable by place and shape: rim chevron versus centre spear.
+
+`verify-local.ps1` was rewritten for the new model and now refuses to pass if the heading-up
+pair reappears, so a partial revert cannot pass silently.
 
 ## Orientation model
 
-**Heading-up.** Screen-up is always where you are looking. The rose carries the
-cardinal letters and rotates so each sits at its true bearing relative to your view; a
-fixed amber lubber marker at the top of the dial marks your facing.
-
-Heading enters the UI in exactly one place, the rose's rotation. The wind needle is
-mounted on the rose and carries a pure world bearing; the heading term cancels in its
-transform. Full derivation in `docs/ARCHITECTURE_PLAN.md` § Rune Compass.
+**North-up.** `N` fixed at 12 o'clock, card static, indicators absolute. See
+`docs/ARCHITECTURE_PLAN.md` for the derivation and `RuneCompass/README.md` for the
+player-facing description.
 
 ## Corrections to earlier status
 

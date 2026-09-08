@@ -4,25 +4,25 @@ Rune Compass skins are presentation-only asset bundles. They must not alter navi
 
 ## Which layers move
 
-Rune Compass is **heading-up**: the compass card rotates so each cardinal sits at its
-true bearing relative to the player's view, and screen-up is always the player's facing.
+Rune Compass is **north-up**: `N` stays at 12 o'clock and the card never rotates. The
+indicators move instead, each placed at an absolute world bearing.
 
 That fixes the motion of every layer, and a skin does not get to choose it:
 
 | Layer | Moves? |
 |---|---|
-| `base.png` — back plate behind the card | static |
-| `ring.png` — the card carrying the cardinal marks | **rotates with the rose**, by `+heading` |
-| `wind_pointer.png` | mounted on the card; carries a pure world bearing |
-| `north_marker.png` (optional) | mounted on the card at bearing 0 |
-| `lubber_marker.png` — "you are looking this way" | static, at the top of the dial |
+| `base.png` — back plate | static |
+| `ring.png` — the card carrying the cardinal marks | **static** — north stays up |
+| `wind_pointer.png` | rotates to the wind's world bearing, centre-mounted |
+| `lubber_marker.png` | rotates to the player's heading, riding the rim |
 
 A skin supplies artwork for these roles. It never decides which of them rotate, and it
 cannot introduce a layer with its own heading-dependent rotation — heading is applied in
 exactly one transform, and that is a behavioural invariant, not a presentation choice.
 
-Art authored for the ring should therefore read correctly at **any** rotation: the
-letters turn with the card, so `S` will be upside down when the player faces south.
+Because the ring is static, its baked `N`/`E`/`S`/`W` are always upright — art for it does
+not need to survive rotation. The two rotating layers are silhouettes, so they read at any
+angle by construction.
 
 Prepared skins contain:
 

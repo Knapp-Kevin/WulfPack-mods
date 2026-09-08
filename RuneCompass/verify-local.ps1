@@ -92,14 +92,15 @@ if ($null -eq $B) { throw "Type WulfPack.RuneCompass.Bearing not found in $dll."
 $mTryBearing = $B.GetMethod("TryBearingFromDirection", $flags)
 $mCardinal   = $B.GetMethod("Cardinal", $flags)
 $mNormalize  = $B.GetMethod("Normalize", $flags)
-$mRoseZ      = $B.GetMethod("RoseRotationZ", $flags)
-$mWindZ      = $B.GetMethod("WindRotationZ", $flags)
+$mBearingZ   = $B.GetMethod("BearingRotationZ", $flags)
 foreach ($pair in @(@("TryBearingFromDirection", $mTryBearing), @("Cardinal", $mCardinal),
-                    @("Normalize", $mNormalize), @("RoseRotationZ", $mRoseZ), @("WindRotationZ", $mWindZ))) {
+                    @("Normalize", $mNormalize), @("BearingRotationZ", $mBearingZ))) {
     if ($null -eq $pair[1]) { throw "Bearing.$($pair[0]) not found." }
 }
-if ($null -ne $B.GetMethod("Relative", $flags)) {
-    throw "Bearing.Relative exists. It was removed as dead code (audit finding F-T2) and must not return."
+foreach ($gone in @("Relative", "RoseRotationZ", "WindRotationZ")) {
+    if ($null -ne $B.GetMethod($gone, $flags)) {
+        throw "Bearing.$gone exists. North-up uses a single BearingRotationZ mapping; the heading-up pair and the dead Relative helper must not return."
+    }
 }
 
 function Get-Bearing {
@@ -132,26 +133,23 @@ Assert-Value "Cardinal(22.6)"    ($mCardinal.Invoke($null, @([single]22.6)))    
 Assert-Value "Cardinal(337.6)"   ($mCardinal.Invoke($null, @([single]337.6)))   "N"
 Assert-Value "Cardinal(359.9)"   ($mCardinal.Invoke($null, @([single]359.9)))   "N"
 
-Write-Host "--- rows 6-10: rose rotation, pinned term by term ---"
-# Rows 9 and 10 are load-bearing. Row 9 rejects the compensating-piecewise family
-# (Rose(h)=h-90 above 180) that passed an earlier revision while rendering the card
-# 90 degrees wrong. Row 10 rejects both 8-point snapping (37.5 -> 45) and smooth
-# periodic error (sin vanishes at every multiple of 90, but not at 37.5).
-Assert-Value "RoseRotationZ(0)"      (Invoke-F $mRoseZ 0)      0
-Assert-Value "RoseRotationZ(90)"     (Invoke-F $mRoseZ 90)     90
-Assert-Value "RoseRotationZ(180)"    (Invoke-F $mRoseZ 180)    180
-Assert-Value "RoseRotationZ(270)"    (Invoke-F $mRoseZ 270)    270
-Assert-Value "RoseRotationZ(37.5)"   (Invoke-F $mRoseZ 37.5)   37.5
+Write-Host "--- rows 6-11: bearing rotation, pinned term by term ---"
+# North-up: N is fixed at 12 o'clock, so a world bearing is an absolute screen position and
+# every indicator shares one mapping, z = -bearing. Rows at 37.5 and 212.5 are load-bearing:
+# they are not multiples of 45, so they reject 8-point snapping and any smooth periodic
+# error whose terms vanish at the quadrant points.
+Assert-Value "BearingRotationZ(0)"      (Invoke-F $mBearingZ 0)      0
+Assert-Value "BearingRotationZ(90)"     (Invoke-F $mBearingZ 90)     -90
+Assert-Value "BearingRotationZ(180)"    (Invoke-F $mBearingZ 180)    -180
+Assert-Value "BearingRotationZ(270)"    (Invoke-F $mBearingZ 270)    -270
+Assert-Value "BearingRotationZ(37.5)"   (Invoke-F $mBearingZ 37.5)   -37.5
+Assert-Value "BearingRotationZ(212.5)"  (Invoke-F $mBearingZ 212.5)  -212.5
 
-Write-Host "--- rows 11-14: wind rotation, pinned term by term ---"
-Assert-Value "WindRotationZ(0)"      (Invoke-F $mWindZ 0)      0
-Assert-Value "WindRotationZ(90)"     (Invoke-F $mWindZ 90)     -90
-Assert-Value "WindRotationZ(135)"    (Invoke-F $mWindZ 135)    -135
-Assert-Value "WindRotationZ(212.5)"  (Invoke-F $mWindZ 212.5)  -212.5
-
-Write-Host "--- row 15: derivation record (adds no detection; terms already pinned) ---"
-$composed = [double]$mNormalize.Invoke($null, @([single](-((Invoke-F $mRoseZ 270) + (Invoke-F $mWindZ 135)))))
-Assert-Value "screen CW angle, heading 270 / wind 135" $composed 225
+Write-Host "--- row 12: derivation record (terms already pinned above) ---"
+# An indicator handed bearing b must appear at clockwise b from screen-up, because the
+# card is fixed to world north. Hand-computed: bearing 135 renders down-right at 135.
+$screenCw = [double]$mNormalize.Invoke($null, @([single](-(Invoke-F $mBearingZ 135))))
+Assert-Value "screen CW angle for bearing 135" $screenCw 135
 
 # ------------------------------------------------------------------ razor ----
 

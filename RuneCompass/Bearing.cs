@@ -48,26 +48,17 @@ internal static class Bearing
     }
 
     /// <summary>
-    /// Unity UI z-rotation for the compass rose. Heading enters the UI here and nowhere else.
+    /// Unity UI z-rotation that puts a world bearing at its true place on a north-up dial.
     /// </summary>
     /// <remarks>
-    /// <c>localEulerAngles.z</c> is counter-clockwise positive; a bearing is clockwise from
-    /// north. A bearing <c>b</c> must appear at clockwise <c>b - heading</c> from screen-up,
-    /// i.e. at <c>z = -(b - heading)</c>. North sits at the rose's local up (<c>b = 0</c>),
-    /// so the rose itself takes <c>z = +heading</c>: face east and the rose's +90 rotation
-    /// carries N from up to the left, which is where north actually is.
+    /// North-up: the card is fixed with N at 12 o'clock, so a world bearing is an absolute
+    /// screen position rather than one relative to where the player is looking.
+    /// <c>localEulerAngles.z</c> is counter-clockwise positive and a bearing is clockwise
+    /// from north, so bearing <c>b</c> renders at <c>z = -b</c>.
+    ///
+    /// Every rotating indicator shares this one mapping — the heading marker and the wind
+    /// pointer differ only in which bearing they are handed. Nothing needs to know where
+    /// the player is looking, which is why the ring itself never moves.
     /// </remarks>
-    public static float RoseRotationZ(float heading) => heading;
-
-    /// <summary>
-    /// Unity UI z-rotation for an indicator mounted on the rose, from its world bearing.
-    /// </summary>
-    /// <remarks>
-    /// Pure-z rotations compose additively, so a child of the rose renders at
-    /// <c>heading + child</c>. Setting <c>child = -bearing</c> yields <c>heading - bearing</c>,
-    /// which is the required <c>-(bearing - heading)</c>. The heading term cancels exactly,
-    /// so an indicator mounted here carries a pure world bearing and never needs to know
-    /// where the player is looking.
-    /// </remarks>
-    public static float WindRotationZ(float worldBearing) => -worldBearing;
+    public static float BearingRotationZ(float worldBearing) => -worldBearing;
 }

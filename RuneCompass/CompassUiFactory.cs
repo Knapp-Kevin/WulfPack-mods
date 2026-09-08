@@ -14,15 +14,20 @@ namespace WulfPack.RuneCompass;
 /// </remarks>
 internal static class CompassUiFactory
 {
-    // Dial geometry, in reference-resolution pixels.
-    private const float DialSize = 120f;
-    private const float CardinalRadius = 45f;
-    private const int CardinalFontSize = 15;
-    private const float NeedleWidth = 2.5f;
-    private const float NeedleLength = 30f;
-    private const float LubberRadius = 56f;
-    private const float LubberWidth = 7f;
-    private const float LubberHeight = 11f;
+    /// <summary>
+    /// Dial diameter in reference-resolution pixels. Everything else is a fraction of it,
+    /// so resizing the compass is a one-constant change and the unskinned geometry keeps
+    /// its proportions instead of being left behind.
+    /// </summary>
+    public const float DialSize = 204f;
+
+    private const float CardinalRadius = DialSize * 0.375f;
+    private const int CardinalFontSize = (int)(DialSize * 0.125f);
+    private const float NeedleWidth = DialSize * 0.021f;
+    private const float NeedleLength = DialSize * 0.25f;
+    private const float LubberRadius = DialSize * 0.467f;
+    private const float LubberWidth = DialSize * 0.058f;
+    private const float LubberHeight = DialSize * 0.092f;
 
     private static readonly Color LubberColor = new(0.95f, 0.75f, 0.28f, 1f);
     private static readonly Color WindColor = new(0.42f, 0.78f, 1f, 0.95f);
@@ -57,13 +62,17 @@ internal static class CompassUiFactory
         return panel;
     }
 
-    public static RectTransform BuildRose(Transform parent)
+    /// <summary>
+    /// The compass card. Static under north-up: N stays at 12 o'clock and the indicators
+    /// move instead, so this carries no rotation at all.
+    /// </summary>
+    public static RectTransform BuildDial(Transform parent)
     {
-        GameObject roseObject = CreateUiObject("CompassRose", parent);
-        RectTransform rose = roseObject.GetComponent<RectTransform>();
-        Centre(rose);
-        rose.sizeDelta = Vector2.zero;
-        return rose;
+        GameObject dialObject = CreateUiObject("CompassDial", parent);
+        RectTransform dial = dialObject.GetComponent<RectTransform>();
+        Centre(dial);
+        dial.sizeDelta = Vector2.zero;
+        return dial;
     }
 
     public static Font CreateFont()
@@ -91,10 +100,18 @@ internal static class CompassUiFactory
         return CreateNeedle("WindNeedle", parent, NeedleWidth, NeedleLength, WindColor);
     }
 
-    /// <summary>The static "you are looking this way" marker at the top of the dial.</summary>
-    public static void CreateLubber(Transform parent)
+    /// <summary>
+    /// The unskinned heading marker: a wedge riding the rim at the bearing the player
+    /// faces. Returned as a centred pivot so rotating it carries the wedge around the rim.
+    /// </summary>
+    public static RectTransform CreateHeadingMarker(Transform parent)
     {
-        GameObject markerObject = CreateUiObject("LubberMarker", parent);
+        GameObject pivotObject = CreateUiObject("HeadingMarkerPivot", parent);
+        RectTransform pivot = pivotObject.GetComponent<RectTransform>();
+        Centre(pivot);
+        pivot.sizeDelta = Vector2.zero;
+
+        GameObject markerObject = CreateUiObject("HeadingMarker", pivot);
         RectTransform marker = markerObject.GetComponent<RectTransform>();
         Centre(marker);
         marker.anchoredPosition = new Vector2(0f, LubberRadius);
@@ -103,11 +120,13 @@ internal static class CompassUiFactory
         Image image = markerObject.AddComponent<Image>();
         image.color = LubberColor;
         image.raycastTarget = false;
+        return pivot;
     }
 
     /// <summary>
     /// A full-dial artwork layer, centred so it rotates about the point the art was drawn
-    /// around. Used for the skin's base, ring and wind pointer.
+    /// around. Used for every skin layer: the base and ring never rotate, while the
+    /// heading marker and wind pointer are handed a world bearing each frame.
     /// </summary>
     public static RectTransform CreateSkinLayer(string name, Transform parent, Sprite sprite)
     {
@@ -121,15 +140,6 @@ internal static class CompassUiFactory
         image.raycastTarget = false;
         image.preserveAspect = true;
         return rect;
-    }
-
-    /// <summary>
-    /// The skin's static facing marker. Drawn at the top of the dial on the same centred
-    /// canvas as every other layer, so it needs no separate placement.
-    /// </summary>
-    public static void CreateSkinLubber(Transform parent, Sprite sprite)
-    {
-        CreateSkinLayer("LubberMarker", parent, sprite);
     }
 
     public static Text CreateReadout(string name, Transform parent, Vector2 position, Font font, int size)

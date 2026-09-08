@@ -8,20 +8,27 @@ Its job is intentionally narrow: show orientation and wind direction without bec
 
 ## Orientation model
 
-**Heading-up.** Screen-up is always where you are looking. The compass rose carries the
-cardinal letters and rotates so each sits at its true bearing relative to your view,
-while a fixed amber **lubber marker** at the top of the dial marks your facing.
+**North-up.** `N` is fixed at 12 o'clock and the card never moves. The indicators travel
+instead:
 
-That is how a hand-held compass behaves, and it is how Valheim itself draws direction:
-the game's ship wind indicator is rotated by a bearing taken in a reference frame, never
-by pinning world-absolute letters to the screen.
+- a **heading marker** rides the rim to the bearing you are facing;
+- a **wind pointer** sits at the centre and points where the wind is blowing.
 
-The letters rotate with the card, so `S` is upside down when you face south. That is
-authentic to a physical compass card rather than an oversight.
+That is how a compass is normally read: north is a fixed reference and you read your
+direction against it.
 
-Internally, heading enters the UI in exactly one place — the rose's rotation. Anything
-mounted on the rose is positioned by pure world bearing, and the heading term cancels in
-its transform. The derivation is written out in `docs/ARCHITECTURE_PLAN.md`.
+Because the card is pinned to world north, every rotation is **absolute**. Each indicator
+is handed a world bearing and rendered at `z = -bearing` through a single mapping — nothing
+needs to know where the player is looking. Adding an indicator means handing it a bearing.
+
+Heading and wind are told apart by place and shape, not colour alone: the heading marker
+rides the rim, the wind pointer sits at the centre with a feather-spear silhouette.
+
+> An earlier revision used a heading-up card that rotated under a fixed marker. It was
+> replaced after seeing it on real artwork: the cardinal glyphs are baked into the ring, so
+> a rotating card put `E` and `W` upside down on southerly headings, and a fixed north
+> reads more like a compass. North-up is also simpler — one mapping instead of two, and no
+> counter-rotation.
 
 ## Configuration
 
@@ -51,7 +58,7 @@ keyboard and are listed in [STATUS.md](STATUS.md); issue #4 stays open until the
 
 Implemented now:
 
-- heading-up orientation with a rotating rose and fixed lubber marker
+- north-up orientation: fixed card, rim heading marker, centre wind pointer
 - camera-based heading, using Valheim's own `Atan2(x, z)` bearing convention
 - No Map-aware visibility through `Game.m_noMap`
 - live wind direction from `EnvMan.GetWindDir()`, bound at compile time

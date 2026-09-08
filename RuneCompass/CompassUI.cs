@@ -5,18 +5,17 @@ using UnityEngine.UI;
 namespace WulfPack.RuneCompass;
 
 /// <summary>
-/// The heading-up compass HUD.
+/// The north-up compass HUD.
 /// </summary>
 /// <remarks>
-/// Screen-up is always where the player is looking. The rose rotates to put each cardinal
-/// on its true bearing; the lubber marker is static at the top of the dial. Heading is
-/// applied to the rose and nowhere else, so anything mounted on the rose is placed by pure
-/// world bearing.
+/// North is fixed at 12 o'clock. The card never moves; the indicators do. A rim marker
+/// travels to the bearing the player is facing, and the wind pointer travels to the
+/// bearing the wind is blowing toward.
 ///
-/// Two presentations share that behaviour. With a skin bound, the ring artwork rides the
-/// rose and the wind spear is mounted on it. Without one, primitive glyphs and a bar
-/// needle stand in — and those glyphs are counter-rotated to stay upright, because a
-/// physical compass card puts its letters upside down on southerly headings.
+/// That makes every rotation absolute: each indicator is handed a world bearing and
+/// rendered at <see cref="Bearing.BearingRotationZ"/>, with nothing needing to know where
+/// the player is looking. Heading and wind are told apart by place and shape rather than
+/// colour alone — the heading marker rides the rim, the wind pointer sits at the centre.
 ///
 /// Which layers move is not a skin's choice. A skin supplies artwork and a resting scale.
 /// </remarks>
@@ -24,8 +23,8 @@ internal sealed class CompassUI : IDisposable
 {
     private readonly GameObject _root;
     private readonly RectTransform _panel;
-    private readonly RectTransform _rose;
-    private readonly RectTransform[] _uprightGlyphs;
+    private readonly RectTransform _dial;
+    private readonly RectTransform _headingMarker;
     private readonly RectTransform _windPointer;
     private readonly Text _headingText;
     private readonly Text _windText;
@@ -45,27 +44,48 @@ internal sealed class CompassUI : IDisposable
         _canvasGroup = CreateCanvasGroup(_root);
         _panel = CompassUiFactory.BuildPanel(_root.transform);
 
-        // Base first so it renders beneath the rose: a Canvas draws in depth-first
+        // Base first so it renders beneath the card: a Canvas draws in depth-first
         // pre-order, and an object's whole subtree is emitted before its next sibling.
         if (skinned && skin!.Base != null)
         {
             CompassUiFactory.CreateSkinLayer("SkinBase", _panel, skin.Base);
         }
 
-        _rose = CompassUiFactory.BuildRose(_panel);
+        _dial = CompassUiFactory.BuildDial(_panel);
         Font font = CompassUiFactory.CreateFont();
 
-        _uprightGlyphs = skinned
-            ? Array.Empty<RectTransform>()
-            : CompassUiFactory.AddCardinals(_rose, font);
-        _windPointer = skinned ? BuildSkinnedDial(skin!) : BuildPrimitiveDial();
+        _windPointer = skinned
+            ? CompassUiFactory.CreateSkinLayer("WindPointer", _panel, skin!.WindPointer!)
+            : CompassUiFactory.CreateWindNeedle(_panel);
+        _headingMarker = BuildCard(skin, skinned, font);
 
+        // Readouts sit just below the dial, so they follow its size.
+        const float below = CompassUiFactory.DialSize * 0.5f;
         _headingText = CompassUiFactory.CreateReadout(
-            "HeadingText", _panel, new Vector2(0f, -72f), font, 14);
+            "HeadingText", _panel, new Vector2(0f, -(below + 14f)), font, 14);
         _windText = CompassUiFactory.CreateReadout(
-            "WindText", _panel, new Vector2(0f, -90f), font, 12);
+            "WindText", _panel, new Vector2(0f, -(below + 32f)), font, 12);
 
         SetVisible(false);
+    }
+
+    /// <summary>
+    /// Populates the fixed card and returns the marker that travels to the player's
+    /// bearing. A skin supplies ring artwork and its own marker; without one, primitive
+    /// glyphs and a wedge stand in.
+    /// </summary>
+    private RectTransform BuildCard(CompassSkin? skin, bool skinned, Font font)
+    {
+        if (!skinned)
+        {
+            CompassUiFactory.AddCardinals(_dial, font);
+            return CompassUiFactory.CreateHeadingMarker(_panel);
+        }
+
+        CompassUiFactory.CreateSkinLayer("SkinRing", _dial, skin!.Ring!);
+        return skin.LubberMarker != null
+            ? CompassUiFactory.CreateSkinLayer("HeadingMarker", _panel, skin.LubberMarker)
+            : CompassUiFactory.CreateHeadingMarker(_panel);
     }
 
     private static CanvasGroup CreateCanvasGroup(GameObject root)
@@ -74,28 +94,6 @@ internal sealed class CompassUI : IDisposable
         group.blocksRaycasts = false;
         group.interactable = false;
         return group;
-    }
-
-    /// <summary>Ring on the rose, wind spear on the rose, lubber static. Returns the spear.</summary>
-    private RectTransform BuildSkinnedDial(CompassSkin skin)
-    {
-        CompassUiFactory.CreateSkinLayer("SkinRing", _rose, skin.Ring!);
-        RectTransform windPointer =
-            CompassUiFactory.CreateSkinLayer("WindPointer", _rose, skin.WindPointer!);
-        if (skin.LubberMarker != null)
-        {
-            CompassUiFactory.CreateSkinLubber(_panel, skin.LubberMarker);
-        }
-
-        return windPointer;
-    }
-
-    /// <summary>The unskinned stand-in: a bar needle on the rose and a static marker.</summary>
-    private RectTransform BuildPrimitiveDial()
-    {
-        RectTransform needle = CompassUiFactory.CreateWindNeedle(_rose);
-        CompassUiFactory.CreateLubber(_panel);
-        return needle;
     }
 
     public void SetVisible(bool visible)
@@ -130,17 +128,7 @@ internal sealed class CompassUI : IDisposable
 
     public void SetHeading(float degrees)
     {
-        float roseZ = Bearing.RoseRotationZ(degrees);
-        _rose.localEulerAngles = new Vector3(0f, 0f, roseZ);
-
-        // Cancel the rose's rotation on any glyph that must stay upright. A skinned ring
-        // bakes its letters into the artwork and carries them around instead, so this
-        // collection is empty there.
-        Vector3 upright = new(0f, 0f, -roseZ);
-        foreach (RectTransform glyph in _uprightGlyphs)
-        {
-            glyph.localEulerAngles = upright;
-        }
+        _headingMarker.localEulerAngles = new Vector3(0f, 0f, Bearing.BearingRotationZ(degrees));
 
         int shown = Mathf.RoundToInt(degrees);
         if (_shownHeading == shown)
@@ -167,7 +155,8 @@ internal sealed class CompassUI : IDisposable
         }
 
         _windPointer.gameObject.SetActive(true);
-        _windPointer.localEulerAngles = new Vector3(0f, 0f, Bearing.WindRotationZ(degrees.Value));
+        _windPointer.localEulerAngles =
+            new Vector3(0f, 0f, Bearing.BearingRotationZ(degrees.Value));
 
         int shown = Mathf.RoundToInt(degrees.Value);
         if (_shownWind == shown)
