@@ -70,19 +70,29 @@ it holds its place across resolutions and aspect ratios.
 This changes the meaning of the two offset values, so an existing
 `com.wulfpack.runecompass.cfg` should be regenerated rather than carried forward.
 
-## Screenshot-driven visual tuning targets
+## Visual pass 1 — done
 
-The first live screenshot proves the primitive HUD is usable as a technical instrument, but not yet release-quality. The next visual cycle should address these in order:
+Driven by the first live screenshots. No art assets yet; this is the placeholder geometry
+made presentable so the artwork has a sane shape to land on.
 
-1. reduce the default visual footprint substantially;
-2. replace or minimize the opaque rectangular debug panel;
-3. move the cardinals onto the final circular/rune geometry;
-4. make heading and wind visually distinct through final artwork;
-5. retain numeric heading/wind readouts only as an optional diagnostic mode;
-6. bind `ClassicWood` first, then extract the reusable skin loader;
-7. prove a second skin changes presentation only.
+| Target | Status |
+|---|---|
+| Reduce default footprint substantially | **done** — dial 190 to 120 px, a 37% linear reduction (~60% less area). Cardinal radius 72 to 45, needle 44 to 30, lubber 9x14 to 7x11 |
+| Remove the opaque rectangular debug panel | **done** — the backing `Image` is gone entirely. The panel is now a transparent container |
+| Keep heading-up unchanged | **done** — no bearing math touched; `verify-local.ps1` unchanged and passing |
+| Numeric readouts become optional | **done** — new `ShowReadouts`, default `false` |
+| Glyph legibility | **done** — cardinals counter-rotate so they stay upright while their positions travel the ring |
 
-Do not combine these visual changes with the current UI split until the split has rebuilt and passed the existing local verification.
+Removing the backing plate would have left pale glyphs over bright terrain, so each text
+element now carries a dark `UnityEngine.UI.Outline`. That keeps it readable without a
+filled rectangle.
+
+Still to come, and needing artwork:
+
+1. move the cardinals onto final circular/rune geometry;
+2. distinguish heading and wind through final art — feather or spear motif for wind;
+3. bind `ClassicWood`, then extract the reusable skin loader;
+4. prove a second skin changes presentation only.
 
 ## What is not verified
 

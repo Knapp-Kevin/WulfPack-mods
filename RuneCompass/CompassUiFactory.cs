@@ -3,12 +3,31 @@ using UnityEngine.UI;
 
 namespace WulfPack.RuneCompass;
 
+/// <summary>
+/// Builds the compass HUD's Unity UI objects.
+/// </summary>
+/// <remarks>
+/// Geometry lives here as named constants so the dial can be resized in one place. There
+/// is deliberately no opaque backing plate: the compass reads over the world with an
+/// outline on each glyph instead, which is far less intrusive than a filled rectangle and
+/// is what the placeholder art is meant to evolve into.
+/// </remarks>
 internal static class CompassUiFactory
 {
-    private static readonly Color PanelColor = new(0.055f, 0.045f, 0.035f, 0.78f);
+    // Dial geometry, in reference-resolution pixels.
+    private const float DialSize = 120f;
+    private const float CardinalRadius = 45f;
+    private const int CardinalFontSize = 15;
+    private const float NeedleWidth = 2.5f;
+    private const float NeedleLength = 30f;
+    private const float LubberRadius = 56f;
+    private const float LubberWidth = 7f;
+    private const float LubberHeight = 11f;
+
     private static readonly Color LubberColor = new(0.95f, 0.75f, 0.28f, 1f);
     private static readonly Color WindColor = new(0.42f, 0.78f, 1f, 0.95f);
-    private static readonly Color CardinalColor = new(0.94f, 0.86f, 0.70f, 1f);
+    private static readonly Color CardinalColor = new(0.96f, 0.91f, 0.80f, 1f);
+    private static readonly Color OutlineColor = new(0f, 0f, 0f, 0.85f);
 
     public static GameObject BuildRoot()
     {
@@ -28,18 +47,13 @@ internal static class CompassUiFactory
         return root;
     }
 
+    /// <summary>The dial container. Transparent — anchor and position come from config.</summary>
     public static RectTransform BuildPanel(Transform parent)
     {
         GameObject panelObject = CreateUiObject("CompassPanel", parent);
         RectTransform panel = panelObject.GetComponent<RectTransform>();
-        // Anchor and position are owned by HudAnchorLayout, applied every frame from
-        // config, so the compass can be pinned to whichever corner the player wants.
         panel.pivot = new Vector2(0.5f, 0.5f);
-        panel.sizeDelta = new Vector2(190f, 190f);
-
-        Image background = panelObject.AddComponent<Image>();
-        background.color = PanelColor;
-        background.raycastTarget = false;
+        panel.sizeDelta = new Vector2(DialSize, DialSize);
         return panel;
     }
 
@@ -47,10 +61,7 @@ internal static class CompassUiFactory
     {
         GameObject roseObject = CreateUiObject("CompassRose", parent);
         RectTransform rose = roseObject.GetComponent<RectTransform>();
-        rose.anchorMin = new Vector2(0.5f, 0.5f);
-        rose.anchorMax = new Vector2(0.5f, 0.5f);
-        rose.pivot = new Vector2(0.5f, 0.5f);
-        rose.anchoredPosition = Vector2.zero;
+        Centre(rose);
         rose.sizeDelta = Vector2.zero;
         return rose;
     }
@@ -60,28 +71,34 @@ internal static class CompassUiFactory
         return Font.CreateDynamicFontFromOSFont("Arial", 24);
     }
 
-    public static void AddCardinals(Transform rose, Font font)
+    /// <summary>
+    /// The four cardinal glyphs, returned so the caller can keep them upright while the
+    /// rose beneath them rotates.
+    /// </summary>
+    public static RectTransform[] AddCardinals(Transform rose, Font font)
     {
-        AddCardinal("N", rose, new Vector2(0f, 72f), font);
-        AddCardinal("E", rose, new Vector2(72f, 0f), font);
-        AddCardinal("S", rose, new Vector2(0f, -72f), font);
-        AddCardinal("W", rose, new Vector2(-72f, 0f), font);
+        return new[]
+        {
+            AddCardinal("N", rose, new Vector2(0f, CardinalRadius), font),
+            AddCardinal("E", rose, new Vector2(CardinalRadius, 0f), font),
+            AddCardinal("S", rose, new Vector2(0f, -CardinalRadius), font),
+            AddCardinal("W", rose, new Vector2(-CardinalRadius, 0f), font),
+        };
     }
 
     public static RectTransform CreateWindNeedle(Transform parent)
     {
-        return CreateNeedle("WindNeedle", parent, 3f, 44f, WindColor);
+        return CreateNeedle("WindNeedle", parent, NeedleWidth, NeedleLength, WindColor);
     }
 
+    /// <summary>The static "you are looking this way" marker at the top of the dial.</summary>
     public static void CreateLubber(Transform parent)
     {
         GameObject markerObject = CreateUiObject("LubberMarker", parent);
         RectTransform marker = markerObject.GetComponent<RectTransform>();
-        marker.anchorMin = new Vector2(0.5f, 0.5f);
-        marker.anchorMax = new Vector2(0.5f, 0.5f);
-        marker.pivot = new Vector2(0.5f, 0.5f);
-        marker.anchoredPosition = new Vector2(0f, 88f);
-        marker.sizeDelta = new Vector2(9f, 14f);
+        Centre(marker);
+        marker.anchoredPosition = new Vector2(0f, LubberRadius);
+        marker.sizeDelta = new Vector2(LubberWidth, LubberHeight);
 
         Image image = markerObject.AddComponent<Image>();
         image.color = LubberColor;
@@ -92,9 +109,7 @@ internal static class CompassUiFactory
     {
         GameObject textObject = CreateUiObject(name, parent);
         RectTransform rect = textObject.GetComponent<RectTransform>();
-        rect.anchorMin = new Vector2(0.5f, 0.5f);
-        rect.anchorMax = new Vector2(0.5f, 0.5f);
-        rect.pivot = new Vector2(0.5f, 0.5f);
+        Centre(rect);
         rect.anchoredPosition = position;
         rect.sizeDelta = new Vector2(220f, 28f);
 
@@ -104,6 +119,7 @@ internal static class CompassUiFactory
         text.alignment = TextAnchor.MiddleCenter;
         text.color = Color.white;
         text.raycastTarget = false;
+        AddOutline(textObject);
         return text;
     }
 
@@ -111,10 +127,7 @@ internal static class CompassUiFactory
     {
         GameObject pivotObject = CreateUiObject(name + "Pivot", parent);
         RectTransform pivot = pivotObject.GetComponent<RectTransform>();
-        pivot.anchorMin = new Vector2(0.5f, 0.5f);
-        pivot.anchorMax = new Vector2(0.5f, 0.5f);
-        pivot.pivot = new Vector2(0.5f, 0.5f);
-        pivot.anchoredPosition = Vector2.zero;
+        Centre(pivot);
         pivot.sizeDelta = Vector2.zero;
 
         GameObject needleObject = CreateUiObject(name, pivot);
@@ -131,12 +144,34 @@ internal static class CompassUiFactory
         return pivot;
     }
 
-    private static void AddCardinal(string value, Transform parent, Vector2 position, Font font)
+    private static RectTransform AddCardinal(string value, Transform parent, Vector2 position, Font font)
     {
-        Text text = CreateReadout("Cardinal" + value, parent, position, font, 22);
+        Text text = CreateReadout("Cardinal" + value, parent, position, font, CardinalFontSize);
         text.text = value;
         text.fontStyle = FontStyle.Bold;
         text.color = CardinalColor;
+        text.rectTransform.sizeDelta = new Vector2(30f, 22f);
+        return text.rectTransform;
+    }
+
+    /// <summary>
+    /// A dark outline so glyphs stay readable over bright terrain now that there is no
+    /// backing plate behind them.
+    /// </summary>
+    private static void AddOutline(GameObject target)
+    {
+        Outline outline = target.AddComponent<Outline>();
+        outline.effectColor = OutlineColor;
+        outline.effectDistance = new Vector2(1.4f, -1.4f);
+        outline.useGraphicAlpha = true;
+    }
+
+    private static void Centre(RectTransform rect)
+    {
+        rect.anchorMin = new Vector2(0.5f, 0.5f);
+        rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = Vector2.zero;
     }
 
     private static GameObject CreateUiObject(string name, Transform parent)

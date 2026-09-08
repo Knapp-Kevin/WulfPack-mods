@@ -33,6 +33,7 @@ watch the file, so changes take effect on the next launch.
 | `Enabled` | `true` | Master switch. |
 | `OnlyInNoMap` | `true` | Show only in No Map worlds. Set `false` to keep it in normal worlds too. |
 | `Anchor` | `TopRight` | Screen corner to pin to: `TopRight`, `TopCenter`, `TopLeft`, `BottomRight`, `BottomLeft`. `TopRight` is where the minimap would be. |
+| `ShowReadouts` | `false` | Numeric heading/wind text under the dial. Off by default — direction, not instrumentation. Turn on for calibration. |
 | `Scale` | `1` | HUD scale multiplier, floored at `0.25`. |
 | `Opacity` | `0.9` | HUD opacity, clamped to 0–1. |
 | `OffsetX` | `0` | Nudge from the anchored resting position. Positive is right. |
