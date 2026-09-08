@@ -115,8 +115,11 @@ Prepared visual families:
 1. **Classic Wood**: carved wooden face, restrained metal framing, feather-spear wind pointer.
 2. **Rune Ring**: darker runic ring treatment with stronger Norse ornament.
 3. **Minimal Nordic**: compact, low-ornament fallback with a teal wind spear.
+4. **Knotwork Wood**: deeper carved timber and aged brass with a blue-steel feather spear.
+5. **Black Iron**: dark timber and riveted iron with a restrained copper wind arrow.
+6. **Gilded Sigil**: an ornate amber runic treatment over a subdued open-work sigil.
 
-All three prepared families remain unbound until the first two prove the loader with
+All six prepared families remain unbound until the first two prove the loader with
 real in-game rendering. Their layers share a centered `512 x 512` RGBA canvas and
 declare their orientation in `skin.json`.
 
@@ -144,7 +147,10 @@ RuneCompass/
     └── Skins/
         ├── ClassicWood/
         ├── RuneRing/
-        └── MinimalNordic/
+        ├── MinimalNordic/
+        ├── KnotworkWood/
+        ├── BlackIron/
+        └── GildedSigil/
 ```
 
 `SkinDefinition` and `SkinLoader` are intentionally not implemented yet. The working compass behavior should earn the abstraction before it is introduced.

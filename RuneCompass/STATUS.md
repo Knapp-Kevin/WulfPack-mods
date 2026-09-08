@@ -5,12 +5,17 @@
 **Compiled, installed, loaded, and observed rendering correctly in a live No Map world.**
 Mechanical validation is complete for PR #9's heading/wind correction. A follow-up UI split has now been added on the same branch and requires one local rebuild before PR #9 can be considered stable again.
 
-The first presentation assets are also prepared, but deliberately remain unbound:
+Six presentation asset families are prepared, but deliberately remain unbound:
 
 - `ClassicWood`: complete four-layer 512 x 512 RGBA bundle plus `skin.json`;
 - `RuneRing`: complete four-layer 512 x 512 RGBA bundle plus `skin.json`;
 - `MinimalNordic`: complete compact four-layer fallback plus `skin.json`;
-- all three bundles use the same centered pivot and north-up source convention;
+- `KnotworkWood`: complete carved-wood and aged-brass four-layer bundle plus `skin.json`;
+- `BlackIron`: complete dark timber, iron, and copper four-layer bundle plus `skin.json`;
+- `GildedSigil`: complete ornate runic four-layer bundle plus `skin.json`;
+- all six bundles use the same centered pivot and north-up source convention;
+- the three follow-up rings omit baked cardinal letters for compatibility with the
+  runtime's upright, counter-rotated glyphs;
 - no runtime behavior or gameplay code changed during asset preparation.
 
 Issue #4 stays **open** until the operator acceptance pass is done.
