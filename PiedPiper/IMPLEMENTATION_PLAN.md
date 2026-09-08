@@ -20,53 +20,49 @@ Established:
 
 ## Phase 1: native command seam and first playable proof
 
-Status: **revised implementation candidate written; local validation pending**.
+Status: **implementation candidate written; local validation pending**.
 
 Public decompiled Valheim source shows that `Tameable` already contains the machinery Pied Piper needs:
 
+- `m_commandable`
 - native `Command` RPC registration
-- tame-state gating
+- tame-state gating in `Interact`
 - native `MonsterAI` follow-target behavior behind the command path
 - saddle state on rideable tameables
 
-The first candidate enabled `m_commandable` globally. Review rejected that shape because it changes normal pet interaction on non-wolf tameables.
+Pied Piper therefore uses the same interaction model as vanilla commandable tameables:
 
-The revised candidate instead:
+1. patch `Tameable.Awake` and enable `m_commandable`;
+2. leave the actual Follow / Stay transition to Valheim;
+3. use Valheim's normal Use / interact action, **E by default**, rather than adding a second keybind;
+4. preserve the normal native interaction path and pet effect;
+5. temporarily suppress commandability for rideables while a saddle is attached;
+6. fail closed on rideables if saddle state cannot be verified;
+7. add local build/install/disable/enable/status/uninstall tooling.
 
-1. leaves vanilla `Tameable.Interact` untouched;
-2. binds one configurable Pied Piper command key, default `G`;
-3. raycasts a short configurable distance from the player camera;
-4. accepts only a tamed `Tameable` target;
-5. resolves the native private `Tameable.Command` method reflectively;
-6. invokes that native command path directly;
-7. rejects rideable tameables while a saddle is attached;
-8. fails closed if saddle state cannot be verified;
-9. leaves pathfinding and Follow / Stay state entirely to Valheim;
-10. adds local build/install/disable/enable/status/uninstall tooling.
-
-This keeps Pied Piper additive. It does not replace petting, rename, wolf interaction, saddle behavior, or the game's own AI.
+No custom targeting system, custom pathfinding, or duplicate follow state is required.
 
 ### Phase 1 local validation
 
 1. Build against the currently installed Valheim + BepInEx assemblies.
-2. Correct any API drift in `Tameable.Command`, `HaveSaddle`, Unity raycast APIs, `KeyboardShortcut`, or component layout.
+2. Correct any API drift in `Tameable`, Harmony, saddle state, or interaction signatures.
 3. Install locally.
-4. Verify boar Follow / Stay first with the Pied Piper key.
-5. Verify normal boar petting remains vanilla.
-6. Verify hen/chicken.
-7. Verify wolf vanilla interaction is unchanged and the Pied Piper key also reaches the native command path.
-8. Verify lox and asksvin while unsaddled.
-9. Verify an attached saddle blocks Pied Piper commands.
+4. Verify boar Follow / Stay first using the normal Use action.
+5. Verify hen/chicken.
+6. Verify wolf behavior is unchanged.
+7. Verify lox and asksvin while unsaddled.
+8. Verify an attached saddle blocks Follow / Stay switching.
+9. Verify rename remains available through Valheim's normal alternate interaction.
 10. Disable and uninstall, restart, and verify vanilla-only behavior is restored.
 
-Completion gate: at least one non-wolf tameable follows and stays correctly through Valheim's native command machinery, with vanilla pet interaction preserved and no custom AI or persisted dependency.
+Completion gate: at least one non-wolf tameable follows and stays correctly through Valheim's native command machinery, with no custom AI or persisted dependency.
 
 ## Phase 2: supported-creature validation matrix
 
-If Phase 1 proves the generic seam, Phase 2 should remain mostly validation rather than new architecture.
+If Phase 1 proves the generic seam, Phase 2 should remain primarily validation rather than new architecture.
 
-- wolf: vanilla interaction unchanged; Pied Piper key works
-- boar: Follow / Stay
+- wolf: confirm no regression
+- boar: Follow / Stay through native Use / E interaction
 - hen/chicken: Follow / Stay
 - lox: Follow / Stay while unsaddled; blocked while saddle is attached
 - asksvin: Follow / Stay while unsaddled; blocked while saddle is attached
@@ -74,7 +70,7 @@ If Phase 1 proves the generic seam, Phase 2 should remain mostly validation rath
 
 Do not create per-creature behavior classes unless the installed game proves they are necessary.
 
-Completion gate: the same Pied Piper key produces consistent Follow / Stay semantics across the supported creature matrix while normal Valheim interaction remains untouched.
+Completion gate: the same native interaction produces consistent Follow / Stay semantics across the supported creature matrix.
 
 ## Phase 3: lifecycle and compatibility hardening
 
@@ -85,7 +81,6 @@ Completion gate: the same Pied Piper key produces consistent Follow / Stay seman
 - smoke-test multiplayer client behavior where mods are permitted
 - document exact current-game API seams relied upon
 - test coexistence with Rested Whispers and Rune Compass
-- verify command-key rebinding and command-distance configuration
 
 Completion gate: Pied Piper can be installed, used, disabled, and removed without leaving the character/world dependent on it or altering unrelated plugins.
 
@@ -104,19 +99,17 @@ The preferred architecture is intentionally small:
 
 ```text
 Plugin
-  ├── config: enabled / command key / command distance
-  └── Update: short target raycast
+  └── Harmony lifecycle
 
-NativeFollowCommand
-  ├── tame eligibility
-  ├── fail-closed saddle guard
-  └── reflective native Command invocation
+TameablePatches
+  ├── Awake: expose native commandability
+  └── Interact: fail-closed saddle guard
 
 Valheim
-  └── Tameable Command RPC + MonsterAI follow state
+  └── native Use interaction + Tameable Command RPC + MonsterAI follow state
 ```
 
-Pied Piper should not own pathfinding, duplicated follow state, or per-creature AI when Valheim already has those systems.
+Pied Piper should not own target acquisition, pathfinding, duplicated follow state, or per-creature AI when Valheim already has those systems.
 
 ## Safety and scope boundaries
 
@@ -128,5 +121,4 @@ Pied Piper should not own pathfinding, duplicated follow state, or per-creature 
 - No global mass-command system in v0.1.
 - No pet stat, combat, breeding, or inventory changes.
 - Never override saddle/riding authority.
-- Preserve vanilla pet and rename interaction.
 - Installed Valheim assemblies are authoritative.
