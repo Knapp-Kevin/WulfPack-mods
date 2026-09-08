@@ -82,7 +82,7 @@ public sealed class Plugin : BaseUnityPlugin
         }
 
         float deltaSeconds = Time.unscaledDeltaTime;
-        if (deltaSeconds > 0f && deltaSeconds < 5f)
+        if (deltaSeconds > 0f)
         {
             _frameMetrics.Add(deltaSeconds * 1000f);
         }
