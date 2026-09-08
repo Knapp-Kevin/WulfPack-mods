@@ -12,6 +12,8 @@ internal sealed class CompassController : IDisposable
     private readonly WindProvider _windProvider = new();
 
     private CompassUI? _ui;
+    private CompassSkin? _skin;
+    private bool _skinResolved;
 
     public CompassController(ManualLogSource log, CompassSettings settings)
     {
@@ -66,8 +68,21 @@ internal sealed class CompassController : IDisposable
             return;
         }
 
-        _ui = new CompassUI();
-        _log.LogInfo("Rune Compass heading-up HUD created.");
+        if (!_skinResolved)
+        {
+            _skinResolved = true;
+            _skin = SkinLoader.Load(_settings.SkinsRoot(), _settings.SelectedSkin(), _log);
+            if (_skin == null)
+            {
+                _log.LogInfo("Rune Compass falling back to the primitive HUD.");
+            }
+        }
+
+        _ui = new CompassUI(_skin);
+        _log.LogInfo(
+            _skin == null
+                ? "Rune Compass heading-up HUD created (primitive)."
+                : $"Rune Compass heading-up HUD created (skin: {_skin.Name}).");
     }
 
     private void Hide()

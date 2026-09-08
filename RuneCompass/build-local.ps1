@@ -114,6 +114,23 @@ function Invoke-Build {
     return $dll
 }
 
+function Install-Assets {
+    param([string]$Destination)
+    $source = Join-Path $PSScriptRoot "Assets"
+    if (-not (Test-Path -LiteralPath $source)) { return }
+
+    # The whole Assets tree is ours, and it lives inside the plugin folder this script
+    # owns, so replacing it wholesale keeps deleted skins from lingering. Guarded by leaf
+    # name for the same reason every other delete in this script is.
+    $target = Join-Path $Destination "Assets"
+    if (Test-Path -LiteralPath $target) {
+        Remove-OwnedPath -Path $target -ExpectedLeaf "Assets" | Out-Null
+    }
+    Copy-Item -LiteralPath $source -Destination $target -Recurse -Force
+    $count = (Get-ChildItem -LiteralPath $target -Recurse -File).Count
+    Write-Host "Deployed $count asset file(s)."
+}
+
 function Move-State {
     param([string]$From, [string]$To, [string]$Label)
     if (-not (Test-Path -LiteralPath $From)) {
@@ -153,6 +170,7 @@ switch ($PSCmdlet.ParameterSetName) {
         $dll = Invoke-Build -Paths $paths
         [void][IO.Directory]::CreateDirectory($paths.Enabled)
         Copy-Item -LiteralPath $dll -Destination (Join-Path $paths.Enabled "RuneCompass.dll") -Force
+        Install-Assets -Destination $paths.Enabled
         if (Test-Path -LiteralPath $paths.Disabled) {
             Remove-OwnedPath -Path $paths.Disabled -ExpectedLeaf $PluginLeaf | Out-Null
         }

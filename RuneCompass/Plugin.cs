@@ -1,3 +1,5 @@
+using System.IO;
+using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
 using UnityEngine;
@@ -23,6 +25,7 @@ public sealed class Plugin : BaseUnityPlugin
     private ConfigEntry<float> _headingOffset = null!;
     private ConfigEntry<HudAnchor> _anchor = null!;
     private ConfigEntry<bool> _showReadouts = null!;
+    private ConfigEntry<string> _selectedSkin = null!;
 
     private void Awake()
     {
@@ -41,9 +44,14 @@ public sealed class Plugin : BaseUnityPlugin
                 Offset = () => new Vector2(_offsetX.Value, _offsetY.Value),
                 ShowReadouts = () => _showReadouts.Value,
                 HeadingOffset = () => _headingOffset.Value,
+                SelectedSkin = () => _selectedSkin.Value,
+                SkinsRoot = () => SkinsRoot,
             });
 
-        Logger.LogInfo($"{PluginName} {PluginVersion} loaded.");
+        string skins = SkinsRoot;
+        Logger.LogInfo(
+            $"{PluginName} {PluginVersion} loaded. Skins root: {skins} "
+            + $"(exists: {Directory.Exists(skins)}, selected: {_selectedSkin.Value}).");
     }
 
     private void BindConfig()
@@ -82,6 +90,13 @@ public sealed class Plugin : BaseUnityPlugin
             false,
             "Show the numeric heading and wind readouts under the dial. Off by default: "
             + "Rune Compass gives direction, not instrumentation. Useful for calibration.");
+        _selectedSkin = Config.Bind(
+            "Display",
+            "SelectedSkin",
+            "ClassicWood",
+            "Skin folder under Assets/Skins. Presentation only - a skin cannot change "
+            + "heading, wind semantics, No Map behaviour or config authority. Falls back "
+            + "to the primitive HUD if the folder is missing or unreadable.");
         _scale = Config.Bind("Display", "Scale", 1f, "HUD scale multiplier.");
         _opacity = Config.Bind("Display", "Opacity", 0.9f, "HUD opacity from 0 to 1.");
         _offsetX = Config.Bind(
@@ -94,6 +109,22 @@ public sealed class Plugin : BaseUnityPlugin
             "OffsetY",
             0f,
             "Vertical nudge from the anchored resting position, in pixels. Positive is up.");
+    }
+
+    /// <summary>
+    /// <c>Assets/Skins</c> beside the plugin DLL. BepInEx loads plugins from disk, so the
+    /// assembly location is the install directory the build script deployed assets into.
+    /// </summary>
+    private static string SkinsRoot
+    {
+        get
+        {
+            string location = Assembly.GetExecutingAssembly().Location;
+            string dir = string.IsNullOrEmpty(location)
+                ? Path.Combine(Paths.PluginPath, "RuneCompass")
+                : Path.GetDirectoryName(location) ?? string.Empty;
+            return Path.Combine(dir, "Assets", "Skins");
+        }
     }
 
     private void Update()

@@ -105,6 +105,33 @@ internal static class CompassUiFactory
         image.raycastTarget = false;
     }
 
+    /// <summary>
+    /// A full-dial artwork layer, centred so it rotates about the point the art was drawn
+    /// around. Used for the skin's base, ring and wind pointer.
+    /// </summary>
+    public static RectTransform CreateSkinLayer(string name, Transform parent, Sprite sprite)
+    {
+        GameObject layerObject = CreateUiObject(name, parent);
+        RectTransform rect = layerObject.GetComponent<RectTransform>();
+        Centre(rect);
+        rect.sizeDelta = new Vector2(DialSize, DialSize);
+
+        Image image = layerObject.AddComponent<Image>();
+        image.sprite = sprite;
+        image.raycastTarget = false;
+        image.preserveAspect = true;
+        return rect;
+    }
+
+    /// <summary>
+    /// The skin's static facing marker. Drawn at the top of the dial on the same centred
+    /// canvas as every other layer, so it needs no separate placement.
+    /// </summary>
+    public static void CreateSkinLubber(Transform parent, Sprite sprite)
+    {
+        CreateSkinLayer("LubberMarker", parent, sprite);
+    }
+
     public static Text CreateReadout(string name, Transform parent, Vector2 position, Font font, int size)
     {
         GameObject textObject = CreateUiObject(name, parent);

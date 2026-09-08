@@ -94,6 +94,46 @@ Still to come, and needing artwork:
 3. bind `ClassicWood`, then extract the reusable skin loader;
 4. prove a second skin changes presentation only.
 
+## ClassicWood binding — code complete, in-game pending
+
+Assets from `3bcdd05` are integrated. All three families ship a centred 512x512 RGBA
+bundle: `base.png`, `ring.png`, `wind_pointer.png`, `lubber_marker.png` and `skin.json`.
+
+Layer contract, unchanged from the heading-up invariant:
+
+| Layer | Parent | Motion |
+|---|---|---|
+| `base.png` | panel | static |
+| `ring.png` | **rose** | rotates by `+heading`, the one heading transform |
+| `wind_pointer.png` | **rose** | `-windToward`, a pure world bearing |
+| `lubber_marker.png` | panel | static, marks facing |
+
+No separate heading pointer was added: under heading-up the facing is always screen-up, so
+the lubber marker carries it and the card moves beneath.
+
+`skin.json.defaultScale` multiplies the player's `Scale` rather than replacing it, so
+ClassicWood rests at `0.78` of the dial and `Scale` still means what it did.
+
+Loading is deliberately small: `SkinLoader` reads `skin.json` with Unity's `JsonUtility`,
+decodes each PNG with `ImageConversion.LoadImage`, and returns `null` on any failure so the
+compass falls back to the primitive HUD rather than vanishing. A skin missing its ring or
+wind pointer is rejected outright.
+
+Verified so far: assets deploy (16 files), and the runtime resolves
+`BepInEx/plugins/RuneCompass/Assets/Skins` with `exists: True` and `selected: ClassicWood`.
+**Not yet seen rendering** — that needs a loaded world.
+
+### Open question the artwork raises
+
+The cardinal glyphs are baked into `ring.png`, which rides the rose. So under a skin they
+rotate with the card and go upside down on southerly headings — the exact legibility
+problem the primitive HUD just fixed by counter-rotating its glyphs.
+
+The primitive path keeps its upright glyphs; the skinned path follows the art. If the
+rotating letters read badly in ClassicWood, the fix is art-side: lift `N`/`E`/`S`/`W` out of
+`ring.png` into a `ring_marks` layer that counter-rotates, leaving ticks and ornament on the
+rotating ring. Operator judgement, once it is on screen.
+
 ## What is not verified
 
 Three items remain, all needing operator judgement rather than a measurement:
