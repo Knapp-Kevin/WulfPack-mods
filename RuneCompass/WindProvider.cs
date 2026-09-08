@@ -1,23 +1,25 @@
-using System;
-using System.Reflection;
-using BepInEx.Logging;
 using UnityEngine;
 
 namespace WulfPack.RuneCompass;
 
+/// <summary>
+/// Reads Valheim's live wind vector.
+/// </summary>
+/// <remarks>
+/// Verified against the installed <c>assembly_valheim.dll</c>:
+/// <c>EnvMan.GetWindDir()</c> is a public instance method returning <see cref="Vector3"/>,
+/// so it is bound at compile time. There is no <c>m_windDir</c> field to fall back to; the
+/// backing state is the non-public <c>m_wind</c> / <c>m_windDir1</c> / <c>m_windDir2</c>
+/// <see cref="Vector4"/> fields, and <c>GetWindDir()</c> simply returns <c>m_wind.xyz</c>.
+///
+/// Convention: <c>GetWindDir()</c> returns the direction the wind is blowing TOWARD.
+/// Confirmed from <c>Ship.GetWindAngleFactor()</c>, which computes
+/// <c>Dot(GetWindDir(), -transform.forward)</c> and drives sail power to zero as that dot
+/// approaches +1 — the no-sailing-into-the-wind case. That only holds if the vector points
+/// downwind, which is the convention Rune Compass displays.
+/// </remarks>
 internal sealed class WindProvider
 {
-    private readonly ManualLogSource _log;
-    private MethodInfo? _getWindDir;
-    private FieldInfo? _windDirField;
-    private bool _resolved;
-    private bool _warnedUnavailable;
-
-    public WindProvider(ManualLogSource log)
-    {
-        _log = log;
-    }
-
     public bool TryGetWindTowardDegrees(out float degrees)
     {
         EnvMan? env = EnvMan.instance;
@@ -27,114 +29,6 @@ internal sealed class WindProvider
             return false;
         }
 
-        Resolve(env.GetType());
-
-        if (TryReadMethod(env, out Vector3 direction) || TryReadField(env, out direction))
-        {
-            direction.y = 0f;
-            if (direction.sqrMagnitude < 0.0001f)
-            {
-                degrees = 0f;
-                return false;
-            }
-
-            direction.Normalize();
-            degrees = Normalize(Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg);
-            return true;
-        }
-
-        if (!_warnedUnavailable)
-        {
-            _warnedUnavailable = true;
-            _log.LogWarning(
-                "Rune Compass could not resolve Valheim's live wind direction API. "
-                + "Heading will continue to work; inspect the installed EnvMan API before changing this provider.");
-        }
-
-        degrees = 0f;
-        return false;
-    }
-
-    private void Resolve(Type envType)
-    {
-        if (_resolved)
-        {
-            return;
-        }
-
-        const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-        _getWindDir = envType.GetMethod("GetWindDir", flags, null, Type.EmptyTypes, null);
-        if (_getWindDir != null && _getWindDir.ReturnType != typeof(Vector3))
-        {
-            _getWindDir = null;
-        }
-
-        _windDirField = envType.GetField("m_windDir", flags);
-        if (_windDirField != null && _windDirField.FieldType != typeof(Vector3))
-        {
-            _windDirField = null;
-        }
-
-        _resolved = true;
-        _log.LogInfo(
-            $"Rune Compass wind API: method={_getWindDir?.Name ?? "none"}, field={_windDirField?.Name ?? "none"}.");
-    }
-
-    private bool TryReadMethod(EnvMan env, out Vector3 direction)
-    {
-        if (_getWindDir == null)
-        {
-            direction = default;
-            return false;
-        }
-
-        try
-        {
-            object? value = _getWindDir.Invoke(env, null);
-            if (value is Vector3 vector)
-            {
-                direction = vector;
-                return true;
-            }
-        }
-        catch (Exception ex)
-        {
-            _log.LogDebug($"GetWindDir invocation failed: {ex.GetType().Name}: {ex.Message}");
-        }
-
-        direction = default;
-        return false;
-    }
-
-    private bool TryReadField(EnvMan env, out Vector3 direction)
-    {
-        if (_windDirField == null)
-        {
-            direction = default;
-            return false;
-        }
-
-        try
-        {
-            object? value = _windDirField.GetValue(env);
-            if (value is Vector3 vector)
-            {
-                direction = vector;
-                return true;
-            }
-        }
-        catch (Exception ex)
-        {
-            _log.LogDebug($"m_windDir read failed: {ex.GetType().Name}: {ex.Message}");
-        }
-
-        direction = default;
-        return false;
-    }
-
-    private static float Normalize(float degrees)
-    {
-        degrees %= 360f;
-        return degrees < 0f ? degrees + 360f : degrees;
+        return Bearing.TryBearingFromDirection(env.GetWindDir(), out degrees);
     }
 }

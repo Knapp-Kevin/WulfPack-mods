@@ -23,7 +23,7 @@ WulfPack Mods is the in-game modding side of the broader WulfPack Valheim projec
 | Mod | Purpose | Status | Documentation |
 | --- | --- | --- | --- |
 | **Rested Whispers** | Gentle, native Valheim warnings as the Rested effect fades. | ✅ Implemented, tested, validated | [README](RestedWhispers/README.md) |
-| **Rune Compass** | Immersive No Map navigation with heading and live wind direction. | 🧪 First playable implementation merged; local gameplay validation remains | [README](RuneCompass/README.md) · [Implementation plan](RuneCompass/IMPLEMENTATION_PLAN.md) · [Status](RuneCompass/STATUS.md) |
+| **Rune Compass** | Immersive No Map navigation with heading-up orientation and live wind direction. | 🧪 Built, installed, loaded and rendering correctly in-game; operator acceptance pass outstanding | [README](RuneCompass/README.md) · [Implementation plan](RuneCompass/IMPLEMENTATION_PLAN.md) · [Status](RuneCompass/STATUS.md) |
 
 ### Rested Whispers
 

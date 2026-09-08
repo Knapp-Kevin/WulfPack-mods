@@ -28,6 +28,14 @@
       <HintPath>$(VALHEIM_MANAGED)/UnityEngine.CoreModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="UnityEngine.UIModule">
+      <HintPath>$(VALHEIM_MANAGED)/UnityEngine.UIModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule">
+      <HintPath>$(VALHEIM_MANAGED)/UnityEngine.TextRenderingModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="UnityEngine.UI">
       <HintPath>$(VALHEIM_MANAGED)/UnityEngine.UI.dll</HintPath>
       <Private>false</Private>
@@ -41,6 +49,8 @@
     <Error Condition="'$(VALHEIM_MANAGED)' != '' and !Exists('$(VALHEIM_MANAGED)/assembly_valheim.dll')" Text="assembly_valheim.dll was not found under VALHEIM_MANAGED." />
     <Error Condition="'$(VALHEIM_MANAGED)' != '' and !Exists('$(VALHEIM_MANAGED)/UnityEngine.dll')" Text="UnityEngine.dll was not found under VALHEIM_MANAGED." />
     <Error Condition="'$(VALHEIM_MANAGED)' != '' and !Exists('$(VALHEIM_MANAGED)/UnityEngine.CoreModule.dll')" Text="UnityEngine.CoreModule.dll was not found under VALHEIM_MANAGED." />
+    <Error Condition="'$(VALHEIM_MANAGED)' != '' and !Exists('$(VALHEIM_MANAGED)/UnityEngine.UIModule.dll')" Text="UnityEngine.UIModule.dll was not found under VALHEIM_MANAGED." />
+    <Error Condition="'$(VALHEIM_MANAGED)' != '' and !Exists('$(VALHEIM_MANAGED)/UnityEngine.TextRenderingModule.dll')" Text="UnityEngine.TextRenderingModule.dll was not found under VALHEIM_MANAGED." />
     <Error Condition="'$(VALHEIM_MANAGED)' != '' and !Exists('$(VALHEIM_MANAGED)/UnityEngine.UI.dll')" Text="UnityEngine.UI.dll was not found under VALHEIM_MANAGED." />
   </Target>
 </Project>

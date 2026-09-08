@@ -2,55 +2,110 @@
 
 ## Current status
 
-First playable technical proof implemented on `feat/rune-compass-playable`. It has **not yet been compiled or observed in-game against the local Valheim installation**, so no acceptance gate is claimed complete yet.
+**Compiled, installed, loaded, and observed rendering correctly in a live No Map world.**
+Mechanical validation is complete. What remains is a short in-game pass that needs a
+human turning the camera — see [In-game acceptance](#in-game-acceptance).
 
-Implemented in this slice:
+Issue #4 stays **open** until that pass is done.
 
-- BepInEx plugin lifecycle and configuration
-- client-side primitive compass HUD
-- camera heading provider
-- No Map visibility using `Game.m_noMap`
-- distinct heading and wind indicators
-- wind provider that resolves the installed `EnvMan` wind direction API at runtime (`GetWindDir()` first, `m_windDir` fallback)
-- explicit wind convention: direction the wind is blowing **toward**
-- configurable enable, scale, opacity, X/Y offset, and heading calibration offset
-- local build/install/disable/enable/status/uninstall helper
-- no save or world mutation
-- no GitHub Actions
+## What is verified
 
-The primitive HUD is deliberate. Final image-backed skins should be wired only after heading, wind, visibility, and lifecycle behavior are validated in-game.
+Evidence gathered 2026-09-08 against the installed game
+(Valheim build 2026-02-02, Unity 6000.0.61, BepInEx 5.4.22 / BepInExPack 5.4.2202).
 
-## Confirmed product decisions
+| # | Claim | Evidence |
+|---|---|---|
+| RC001 | Bearing convention matches Valheim's own | `verify-local.ps1`: `+Z/+X/-Z/-X` → 0/90/180/270, diagonals → 45/135/225/315, against hand-computed literals |
+| RC002 | Rose rotation is correct term by term | `verify-local.ps1`: `RoseRotationZ` → 0/90/180/270/37.5 |
+| RC003 | Wind rotation is correct term by term | `verify-local.ps1`: `WindRotationZ` → 0/−90/−135/−212.5 |
+| RC010 | Lifecycle touches nothing it does not own | SHA-256 diff across install → disable → enable → uninstall: 100 save files, 2 sibling plugin files, 4 sibling config files byte-identical |
+| RC011 | Loads clean | `[Info :Rune Compass] Rune Compass 0.1.0 loaded.` — no Rune Compass error, warning, or exception anywhere in `LogOutput.log` |
+| RC012 | Section 4 Razor | `verify-local.ps1` § Razor: longest method 29 lines, largest file 246/250 |
+| — | HUD constructs and runs | `Rune Compass heading-up HUD created.` in a live world; no per-frame exception across a sustained session |
+| — | Orientation renders correctly | Screenshot at heading 344°: `N` right of top, `E` right-below, `S` left of bottom, `W` left-above — each at `bearing − heading` clockwise from screen-up. Wind 045° drawn up-and-right. Lubber amber at top |
 
-- Name: Rune Compass.
-- Primary use case: No Map navigation.
-- Core rule: direction, not hidden information.
-- Heading and cardinal orientation are required.
-- Wind direction is required and treated as a first-class signal.
-- Wind indicator defaults to direction the wind is blowing toward.
-- Visual skins are interchangeable and presentation-only.
-- Initial skin families: Classic Wood, Rune Ring, Minimal Nordic.
-- Initial release should remain client-side where current Valheim APIs allow it.
-- No save/world persistence for v0.1.
-- No GitHub Actions.
+## What is not verified
 
-## Next validation gate
+Honest boundary. The local harness invokes pure functions by reflection over the
+compiled DLL; it cannot construct Unity `GameObject`s or `RectTransform`s, so it never
+observes parenting or rendering. Everything below needs eyes on the screen.
 
-Run locally against the installed Valheim + BepInEx assemblies:
+- A **full 360° turn** — orientation is confirmed at one heading (344°), not swept.
+- Whether the wind needle agrees with **observable** world wind (smoke, sail, grass),
+  as opposed to being drawn correctly for the number `GetWindDir()` reports.
+- The No Map **hide** case and the `OnlyInNoMap = false` override.
+- `Scale`, `Opacity`, `OffsetX/Y` visual effect.
+- Whether **camera-sourced heading reads well in third person**, where the camera
+  orbits independently of the body (open question 1).
+- Whether **rotating cardinal glyphs** read acceptably — `S` is upside down when facing
+  south, which is authentic to a physical compass card but is a taste call
+  (open question 2).
+
+## In-game acceptance
+
+Run these and record the result on issue #4. Install first:
 
 ```powershell
-.\RuneCompass\build-local.ps1
 .\RuneCompass\build-local.ps1 -Install
 ```
 
-Then verify:
+| # | Step | Expect |
+|---|---|---|
+| 1 | Launch Valheim, check `BepInEx/LogOutput.log` | `Rune Compass 0.1.0 loaded.`, no Rune Compass error |
+| 2 | Enter a **No Map** world | `Rune Compass heading-up HUD created.` |
+| 3 | Look at the HUD | Dial at top centre; `N`/`E`/`S`/`W` on the card; amber marker fixed at top |
+| 4 | Enter a **normal** (map-enabled) world | Compass hidden |
+| 5 | Set `OnlyInNoMap = false`, restart, normal world | Compass visible |
+| 6 | **Turn slowly through a full circle** | Card rotates smoothly; when `N` is at the top marker the readout reads ≈`000° N`; letters stay on their true bearings the whole way round |
+| 7 | Face a known direction and check the readout | Degrees and cardinal agree with where you are actually looking |
+| 8 | Compare the wind needle against smoke from a fire, or a sail | Needle points where the wind **blows toward**, not where it comes from |
+| 9 | Third person, orbit the camera without moving | Decide whether camera-sourced heading reads correctly (open question 1) |
+| 10 | Set `Scale`, then `Opacity`, then `OffsetX`/`OffsetY`, restarting between | Each changes the HUD as documented |
+| 11 | `.\RuneCompass\build-local.ps1 -Disable`, relaunch | No compass, no Rune Compass line in the log |
+| 12 | `-Enable`, relaunch | Compass returns |
+| 13 | `-Uninstall`, relaunch | No Rune Compass plugin load; Rested Whispers and Jotunheim still load; character and world unchanged |
 
-1. clean compile and plugin load
-2. HUD appears in No Map mode and hides otherwise by default
-3. N/E/S/W alignment through a full turn
-4. wind indicator changes with live Valheim wind and uses the documented toward convention
-5. display configuration
-6. disable/enable lifecycle
-7. uninstall leaves other plugins and world/character data untouched
+Config lives at `BepInEx/config/com.wulfpack.runecompass.cfg` and is written on first
+run.
 
-Any API drift found by the local compile or runtime test should be corrected against the installed assemblies, not papered over from historical mod examples.
+## Orientation model
+
+**Heading-up.** Screen-up is always where you are looking. The rose carries the
+cardinal letters and rotates so each sits at its true bearing relative to your view; a
+fixed amber lubber marker at the top of the dial marks your facing. This is how a
+hand-held compass behaves, and it matches Valheim's own HUD convention — the game
+renders its ship wind indicator as a bearing taken in a reference frame, never as
+world-absolute rose letters.
+
+Heading enters the UI in exactly one place, the rose's rotation. The wind needle is
+mounted on the rose and carries a pure world bearing; the heading term cancels in its
+transform. Full derivation in `docs/ARCHITECTURE_PLAN.md` § Rune Compass.
+
+## Corrections to earlier status
+
+Recorded because the previous revision of this file asserted them.
+
+- **The `m_windDir` fallback never existed.** `EnvMan` has no such field — the backing
+  state is `m_wind` / `m_windDir1` / `m_windDir2`, all `Vector4` and non-public, and the
+  fallback filtered on `Vector3`, so it could never have bound. It was described here as
+  a resilience feature. Removed; `GetWindDir()` is now bound at compile time.
+- **The first playable candidate did not build.** `build-local.ps1` had a parse error
+  that killed every mode of the script, and the `.csproj` was missing two Unity module
+  references. Both fixed. See `docs/SHADOW_GENOME.md` Failure #5.
+
+## Confirmed product decisions
+
+- Name: Rune Compass. Primary use case: No Map navigation.
+- Core rule: direction, not hidden information.
+- Orientation: heading-up.
+- Wind is first-class, and points the direction the wind blows **toward**.
+- Skins are presentation-only and interchangeable.
+- Client-side; no save or world persistence; no GitHub Actions.
+
+## Next
+
+Skins are a separate cycle, deliberately. `ClassicWood` first, then the loader
+extraction, then a second skin proving behaviour is untouched.
+
+**Before that cycle starts**: `CompassUI.cs` is at 246 lines of a 250 limit. Split it
+first rather than discovering the ceiling mid-way.

@@ -14,10 +14,9 @@ internal sealed class CompassController : IDisposable
     private readonly Func<Vector2> _offset;
     private readonly Func<float> _headingOffset;
     private readonly HeadingProvider _headingProvider = new();
-    private readonly WindProvider _windProvider;
+    private readonly WindProvider _windProvider = new();
 
     private CompassUI? _ui;
-    private float _nextUpdateTime;
 
     public CompassController(
         ManualLogSource log,
@@ -35,35 +34,15 @@ internal sealed class CompassController : IDisposable
         _opacity = opacity;
         _offset = offset;
         _headingOffset = headingOffset;
-        _windProvider = new WindProvider(log);
     }
 
     public void Tick()
     {
-        if (!_enabled())
+        if (!ShouldShow())
         {
             Hide();
             return;
         }
-
-        if (_onlyInNoMap() && !Game.m_noMap)
-        {
-            Hide();
-            return;
-        }
-
-        if (Player.m_localPlayer == null)
-        {
-            Hide();
-            return;
-        }
-
-        if (Time.unscaledTime < _nextUpdateTime)
-        {
-            return;
-        }
-
-        _nextUpdateTime = Time.unscaledTime + 0.05f;
 
         if (!_headingProvider.TryGetHeadingDegrees(_headingOffset(), out float heading))
         {
@@ -75,15 +54,18 @@ internal sealed class CompassController : IDisposable
         _ui!.SetVisible(true);
         _ui.ApplyLayout(_scale(), _opacity(), _offset());
         _ui.SetHeading(heading);
+        _ui.SetWind(_windProvider.TryGetWindTowardDegrees(out float wind) ? wind : null);
+    }
 
-        if (_windProvider.TryGetWindTowardDegrees(out float wind))
-        {
-            _ui.SetWind(wind);
-        }
-        else
-        {
-            _ui.SetWind(null);
-        }
+    /// <summary>
+    /// Whether the compass should be on screen at all, independent of whether a heading
+    /// can currently be resolved.
+    /// </summary>
+    private bool ShouldShow()
+    {
+        return _enabled()
+            && (!_onlyInNoMap() || Game.m_noMap)
+            && Player.m_localPlayer != null;
     }
 
     public void Dispose()
@@ -100,7 +82,7 @@ internal sealed class CompassController : IDisposable
         }
 
         _ui = new CompassUI();
-        _log.LogInfo("Rune Compass primitive HUD created.");
+        _log.LogInfo("Rune Compass heading-up HUD created.");
     }
 
     private void Hide()

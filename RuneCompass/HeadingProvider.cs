@@ -2,6 +2,15 @@ using UnityEngine;
 
 namespace WulfPack.RuneCompass;
 
+/// <summary>
+/// Resolves the direction the player is currently looking, as a world bearing.
+/// </summary>
+/// <remarks>
+/// Uses the flattened main-camera forward vector. Valheim's own <c>Utils.GetMainCamera()</c>
+/// is only a per-frame cache around <c>Camera.main</c> (verified in the installed
+/// <c>assembly_utils.dll</c>), so <see cref="Camera.main"/> is used directly rather than
+/// taking a reference on <c>assembly_utils</c> for no behavioural gain.
+/// </remarks>
 internal sealed class HeadingProvider
 {
     public bool TryGetHeadingDegrees(float calibrationOffset, out float headingDegrees)
@@ -13,23 +22,13 @@ internal sealed class HeadingProvider
             return false;
         }
 
-        Vector3 forward = camera.transform.forward;
-        forward.y = 0f;
-        if (forward.sqrMagnitude < 0.0001f)
+        if (!Bearing.TryBearingFromDirection(camera.transform.forward, out float raw))
         {
             headingDegrees = 0f;
             return false;
         }
 
-        forward.Normalize();
-        float raw = Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg;
-        headingDegrees = Normalize(raw + calibrationOffset);
+        headingDegrees = Bearing.Normalize(raw + calibrationOffset);
         return true;
-    }
-
-    private static float Normalize(float degrees)
-    {
-        degrees %= 360f;
-        return degrees < 0f ? degrees + 360f : degrees;
     }
 }
