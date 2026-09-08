@@ -20,6 +20,7 @@ public sealed class Plugin : BaseUnityPlugin
     private FrameMetrics _frameMetrics = null!;
     private float _nextReportAt;
     private float _nextSceneSnapshotAt;
+    private bool _wasEnabled;
 
     private void Awake()
     {
@@ -54,6 +55,7 @@ public sealed class Plugin : BaseUnityPlugin
             "Seconds between optional active-scene population snapshots. Minimum effective value is 5 seconds.");
 
         _frameMetrics = new FrameMetrics(Mathf.Clamp(_sampleCapacity.Value, 120, 36000));
+        _wasEnabled = _enabled.Value;
         ResetTimers();
 
         Logger.LogInfo($"{PluginName} {PluginVersion} loaded in read-only Gate 0 mode.");
@@ -64,7 +66,19 @@ public sealed class Plugin : BaseUnityPlugin
     {
         if (!_enabled.Value)
         {
+            if (_wasEnabled)
+            {
+                _frameMetrics.Reset();
+                _wasEnabled = false;
+            }
             return;
+        }
+
+        if (!_wasEnabled)
+        {
+            _frameMetrics.Reset();
+            ResetTimers();
+            _wasEnabled = true;
         }
 
         float deltaSeconds = Time.unscaledDeltaTime;
@@ -87,14 +101,6 @@ public sealed class Plugin : BaseUnityPlugin
         }
     }
 
-    private void OnEnable()
-    {
-        if (_frameMetrics is not null)
-        {
-            ResetTimers();
-        }
-    }
-
     private void ReportFrameMetrics()
     {
         FrameMetricsSnapshot snapshot = _frameMetrics.SnapshotAndReset();
@@ -105,7 +111,7 @@ public sealed class Plugin : BaseUnityPlugin
 
         Logger.LogInfo(
             $"Frame metrics ({snapshot.SampleCount} samples): " +
-            $"avg {snapshot.AverageMs:F2} ms ({snapshot.AverageFps:F1} FPS), " +
+            $"avg {snapshot.AverageMs:F2} ms (~{snapshot.AverageFps:F1} FPS equivalent), " +
             $"p50 {snapshot.P50Ms:F2} ms, p95 {snapshot.P95Ms:F2} ms, " +
             $"p99 {snapshot.P99Ms:F2} ms, p99.9 {snapshot.P999Ms:F2} ms, max {snapshot.MaxMs:F2} ms.");
     }
@@ -117,7 +123,7 @@ public sealed class Plugin : BaseUnityPlugin
             "Active scene snapshot: " +
             $"renderers {snapshot.Renderers}, lights {snapshot.Lights}, particles {snapshot.ParticleSystems}, " +
             $"audio {snapshot.AudioSources}, colliders {snapshot.Colliders}, rigidbodies {snapshot.Rigidbodies}, " +
-            $"MonoBehaviours {snapshot.MonoBehaviours}.");
+            $"MonoBehaviours {snapshot.MonoBehaviours}; scan cost {snapshot.ElapsedMilliseconds:F2} ms.");
     }
 
     private void ResetTimers()
