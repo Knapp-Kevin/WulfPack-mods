@@ -1,0 +1,9 @@
+{
+  "name": "PiedPiper",
+  "version_number": "0.1.0",
+  "website_url": "https://github.com/Knapp-Kevin/WulfPack-mods",
+  "description": "A lightweight Valheim mod that adds one consistent Follow / Stay command to eligible tamed creatures.",
+  "dependencies": [
+    "denikson-BepInExPack_Valheim-5.4.2202"
+  ]
+}
