@@ -158,7 +158,7 @@ function Move-State {
 
     [void][IO.Directory]::CreateDirectory((Split-Path $To -Parent))
     Move-Item -LiteralPath $From -Destination $To
-    Write-Host "$Label: $To"
+    Write-Host "${Label}: $To"
 }
 
 function Show-Status {
