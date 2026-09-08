@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>RestedWhispers</AssemblyName>
+    <RootNamespace>WulfPack.RestedWhispers</RootNamespace>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="BepInEx">
+      <HintPath>$(BEPINEX_CORE)/BepInEx.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="assembly_valheim">
+      <HintPath>$(VALHEIM_MANAGED)/assembly_valheim.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(VALHEIM_MANAGED)/UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="ValidateValheimReferences" BeforeTargets="ResolveReferences">
+    <Error Condition="'$(BEPINEX_CORE)' == ''" Text="Set BEPINEX_CORE to the BepInEx/core directory for your Valheim installation." />
+    <Error Condition="'$(VALHEIM_MANAGED)' == ''" Text="Set VALHEIM_MANAGED to valheim_Data/Managed for your Valheim installation." />
+  </Target>
+</Project>
