@@ -2,20 +2,23 @@
 
 ## Current state
 
-🧱 **Gate 0: foundation implementation in progress**
+🧪 **Gate 0 foundation merged; runtime validation remains open**
 
-The product name, objective, safety boundary, benchmark contract, and phased architecture are established.
+The product name, objective, safety boundary, benchmark contract, phased architecture, and read-only instrumentation foundation are now on `main` via PR #11.
 
-## Implemented in this branch
+## Landed on main
 
 - dedicated `VidarShrugged/` project area
 - product README and explicit non-goals
 - benchmark ladder culminating in the ~40,000-piece **Asgard** workload
 - implementation gates from diagnostics through optional aggressive optimizations
 - initial read-only runtime diagnostics
+- wall-clock frame-duration percentiles and frame-pacing context logging
+- optional active-scene pressure snapshots with self-reported scan cost
 - cooperative frame-budget scheduler primitive
 - local build/install/remove workflow
 - Thunderstore-style manifest metadata
+- no compile-time dependency on `assembly_valheim.dll` in Gate 0
 
 ## Deliberately not implemented yet
 
@@ -31,17 +34,17 @@ The product name, objective, safety boundary, benchmark contract, and phased arc
 - persistent render cache
 - save/world mutation
 
-## Next validation gate
+## Remaining Gate 0 validation
 
 1. Build against the installed Valheim/BepInEx assemblies.
 2. Load in-game and confirm diagnostics overhead is negligible with scene snapshots disabled.
 3. Enable scene snapshots and measure their own cost.
-4. Re-run against Valheim 1.0 assemblies when available.
+4. Re-run against the shipped Valheim 1.0 assemblies when available.
 5. Capture the first canonical vanilla large-build baseline before selecting the first invasive optimization.
 
 ## Current risk
 
-Valheim 1.0 is imminent, so implementation-sensitive patches are intentionally deferred until the shipped 1.0 assemblies can be treated as authoritative.
+The foundation has been statically reviewed and merged, but it has not yet been compiled or exercised in the actual Valheim runtime from this execution environment. Implementation-sensitive patches remain intentionally deferred until shipped 1.0 assemblies and baseline evidence are available.
 
 ## Completion definition for Gate 0
 

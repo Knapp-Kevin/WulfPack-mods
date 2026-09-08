@@ -27,7 +27,7 @@ WulfPack Mods is the in-game modding side of the broader WulfPack Valheim projec
 | **Rested Whispers** | Gentle, native Valheim warnings as the Rested effect fades. | ✅ Implemented, tested, validated | [README](RestedWhispers/README.md) |
 | **Rune Compass** | Immersive No Map navigation with heading and live wind direction. | 🧪 First playable implementation merged; local gameplay validation remains | [README](RuneCompass/README.md) · [Implementation plan](RuneCompass/IMPLEMENTATION_PLAN.md) · [Status](RuneCompass/STATUS.md) |
 | **Pied Piper** | One consistent Follow / Stay command for eligible tamed creatures. | 🧱 Repository mesh established; API discovery next | [README](PiedPiper/README.md) · [Implementation plan](PiedPiper/IMPLEMENTATION_PLAN.md) · [Status](PiedPiper/STATUS.md) |
-| **Vidar Shrugged** | Large-settlement performance instrumentation and optimization. | 🧱 Gate 0 foundation implementation | [README](VidarShrugged/README.md) · [Implementation plan](VidarShrugged/IMPLEMENTATION_PLAN.md) · [Benchmark plan](VidarShrugged/BENCHMARK_PLAN.md) · [Status](VidarShrugged/STATUS.md) |
+| **Vidar Shrugged** | Large-settlement performance instrumentation and optimization. | 🧪 Gate 0 foundation merged; runtime validation open | [README](VidarShrugged/README.md) · [Implementation plan](VidarShrugged/IMPLEMENTATION_PLAN.md) · [Benchmark plan](VidarShrugged/BENCHMARK_PLAN.md) · [Status](VidarShrugged/STATUS.md) |
 
 ### Rested Whispers
 
@@ -237,5 +237,5 @@ Add the new mod to the table in [Current mods](#current-mods), then keep its det
 - **Rested Whispers:** ✅ implemented, tested, validated, and accepted.
 - **Rune Compass:** 🧪 first playable implementation is in the repository; local compile and in-game validation remain tracked in issue #4.
 - **Pied Piper:** 🧱 repository mesh is established; authoritative Valheim tame/follow API discovery is the next gate in issue #6.
-- **Vidar Shrugged:** 🧱 Gate 0 foundation is implemented on `feature/vidar-shrugged-foundation`; compile and in-game baseline validation remain tracked in issue #10.
+- **Vidar Shrugged:** 🧪 Gate 0 foundation is merged on `main`; compile and in-game baseline validation remain tracked in issue #10.
 - **GitHub Actions:** prohibited. Zero runs expected.
