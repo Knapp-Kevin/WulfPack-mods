@@ -5,6 +5,14 @@
 **Compiled, installed, loaded, and observed rendering correctly in a live No Map world.**
 Mechanical validation is complete for PR #9's heading/wind correction. A follow-up UI split has now been added on the same branch and requires one local rebuild before PR #9 can be considered stable again.
 
+The first presentation assets are also prepared, but deliberately remain unbound:
+
+- `ClassicWood`: complete four-layer 512 x 512 RGBA bundle plus `skin.json`;
+- `RuneRing`: complete four-layer 512 x 512 RGBA bundle plus `skin.json`;
+- `MinimalNordic`: complete compact four-layer fallback plus `skin.json`;
+- all three bundles use the same centered pivot and north-up source convention;
+- no runtime behavior or gameplay code changed during asset preparation.
+
 Issue #4 stays **open** until the operator acceptance pass is done.
 
 ## What is verified
@@ -47,6 +55,10 @@ The first live screenshot proves the primitive HUD is usable as a technical inst
 7. prove a second skin changes presentation only.
 
 Do not combine these visual changes with the current UI split until the split has rebuilt and passed the existing local verification.
+
+The image files may be reviewed independently of that build gate. Binding them into
+Unity remains after the split verification, so their presence is not evidence that a
+skin has rendered in game.
 
 ## What is not verified
 
@@ -126,4 +138,6 @@ transform. Full derivation in `docs/ARCHITECTURE_PLAN.md` § Rune Compass.
 2. Rerun `verify-local.ps1` and confirm Razor still passes.
 3. Complete the remaining human in-game acceptance checklist.
 4. Merge PR #9 only when those results are recorded.
-5. Start the visual/skin cycle with `ClassicWood`, then extract the loader, then prove a second skin.
+5. Bind `ClassicWood` without changing the heading-up transform model and test it in game.
+6. Extract the smallest useful loader, then prove `RuneRing` changes presentation only.
+7. Bind `MinimalNordic` only after both primary families render cleanly at reduced scale.

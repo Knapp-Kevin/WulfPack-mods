@@ -42,8 +42,11 @@ Implemented now:
 - no save or world-state mutation
 - zero GitHub Actions
 
-The HUD is still deliberately plain. It exists to prove mechanics before skin assets are
-bound, and the mechanics are now proven.
+The live HUD is still deliberately plain. It exists to prove mechanics before skin
+assets are bound, and the mechanics are now proven. Presentation-ready `ClassicWood`,
+`RuneRing`, and `MinimalNordic` texture bundles are prepared under `Assets/Skins`; they
+do not alter the current runtime until the skin loader and renderer are implemented and
+tested in game.
 
 ## Local build and install
 
@@ -102,17 +105,20 @@ A skin may eventually define:
 
 - base / face texture
 - outer ring texture
-- heading pointer texture
 - wind pointer texture
 - optional north marker
 - pointer pivot and visual offsets
 - default visual scale or opacity where needed for alignment
 
-Planned initial skin families:
+Prepared visual families:
 
-1. **Classic Wood**: carved wooden face, restrained metal framing, simple pointer.
+1. **Classic Wood**: carved wooden face, restrained metal framing, feather-spear wind pointer.
 2. **Rune Ring**: darker runic ring treatment with stronger Norse ornament.
-3. **Minimal Nordic**: compact, highly readable treatment for players who want less HUD weight.
+3. **Minimal Nordic**: compact, low-ornament fallback with a teal wind spear.
+
+All three prepared families remain unbound until the first two prove the loader with
+real in-game rendering. Their layers share a centered `512 x 512` RGBA canvas and
+declare their orientation in `skin.json`.
 
 Existing compass concept art should be curated into these roles rather than copied wholesale into every skin.
 
@@ -136,6 +142,9 @@ RuneCompass/
 ├── STATUS.md
 └── Assets/
     └── Skins/
+        ├── ClassicWood/
+        ├── RuneRing/
+        └── MinimalNordic/
 ```
 
 `SkinDefinition` and `SkinLoader` are intentionally not implemented yet. The working compass behavior should earn the abstraction before it is introduced.
