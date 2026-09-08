@@ -5,6 +5,10 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
+    throw ".NET SDK was not found on PATH. Install a .NET SDK before building Rested Whispers."
+}
+
 if ([string]::IsNullOrWhiteSpace($ValheimRoot)) {
     $candidates = @(
         "C:\Program Files (x86)\Steam\steamapps\common\Valheim",
