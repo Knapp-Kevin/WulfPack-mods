@@ -6,6 +6,36 @@ Pied Piper is a deliberately small Valheim quality-of-life mod that gives eligib
 
 The mod exists to make tameable creatures easier to move without becoming a pet-management overhaul.
 
+## Current implementation direction
+
+Public decompiled Valheim source shows that `Tameable` already owns the native command RPC and follow-target machinery. The normal interaction path calls that command only when `m_commandable` is enabled.
+
+That gives Pied Piper a very small implementation seam:
+
+1. enable Valheim's existing command path on tameables;
+2. leave wild / untamed creatures unaffected because vanilla `Tameable.Interact` already gates command behavior on tame state;
+3. preserve wolves' native behavior rather than replacing it;
+4. suppress Follow / Stay switching while a rideable tameable currently has a saddle attached;
+5. otherwise let Valheim's own command RPC and `MonsterAI` follow state do the work.
+
+The **installed Valheim assemblies remain authoritative**. The current source is an implementation candidate until it compiles and runs against the installed game.
+
+## Input behavior
+
+Pied Piper intentionally uses Valheim's normal **Use / interact** input instead of inventing a second pet-command key.
+
+For an eligible tamed creature:
+
+```text
+Look at tameable
+    ↓
+Press Use
+    ↓
+Valheim native Follow / Stay command
+```
+
+This keeps wolves familiar and makes boars, hens/chickens, lox, asksvin, and compatible future tameables behave consistently.
+
 ## Scope
 
 Initial supported creature families:
@@ -16,28 +46,15 @@ Initial supported creature families:
 - lox
 - asksvin
 
-Future tameable creatures can be added later when Valheim exposes them through a compatible tame/follow contract. The planned Valheim 1.0 moose is therefore a future compatibility target, not a current dependency.
+Future tameable creatures can be supported automatically when they use a compatible `Tameable` / native follow contract. A future rideable tameable should inherit the same saddle rule rather than requiring a special-case creature class.
 
-## Behavior contract
+## Rideable tameables
 
-Pied Piper should:
+Pied Piper does not fight Valheim's saddle authority.
 
-- operate only on tamed creatures
-- expose one configurable command input for Follow / Stay
-- preserve wolves' existing native command behavior where practical
-- use Valheim's native follow-target / tameable machinery wherever possible
-- ignore wild and untamed creatures
-- avoid custom pathfinding when the game already has a usable follow state
-- remain independently removable
-- introduce no save or world migration requirement
+When a tameable exposes a saddle component and currently has a saddle attached, normal petting / rename behavior remains available, but Pied Piper does not allow that interaction to switch the creature into Follow.
 
-### Rideable tameables
-
-Lox and asksvin must not be forced into Follow while Valheim's saddle or riding behavior owns movement.
-
-The rule is simple: **Pied Piper does not fight the mounted state.**
-
-Any future rideable tameable should follow the same rule.
+For v0.1 this is intended to cover lox and asksvin generically.
 
 ## Explicit non-goals for v0.1
 
@@ -62,23 +79,17 @@ If a feature cannot be explained as part of Follow / Stay, it probably belongs s
 
 ```text
 PiedPiper/
+├── Plugin.cs
+├── TameablePatches.cs
+├── PiedPiper.csproj
+├── build-local.ps1
 ├── README.md
 ├── IMPLEMENTATION_PLAN.md
 ├── STATUS.md
 └── manifest.json
 ```
 
-Implementation source and local lifecycle tooling will be added in Phase 1 after the current installed Valheim assemblies have been inspected for the authoritative tame/follow command seam.
-
-## Implementation principle
-
-Historical mod source can help locate likely APIs, but the installed Valheim assemblies are authoritative.
-
-The preferred implementation is the smallest possible adapter over Valheim's own tame/follow state. Custom AI should be a last resort, not the opening move.
-
-## Planned local lifecycle
-
-Pied Piper will follow the repository's established local workflow:
+## Local lifecycle
 
 ```powershell
 .\PiedPiper\build-local.ps1
@@ -89,14 +100,23 @@ Pied Piper will follow the repository's established local workflow:
 .\PiedPiper\build-local.ps1 -Uninstall
 ```
 
-Those commands do not exist yet. They are part of Phase 1 and must manage only Pied Piper-owned files.
+The helper manages only Pied Piper-owned files and never touches unrelated plugins.
 
 ## Validation target
 
-The first release is successful when a player can use one consistent command to switch every supported eligible tamed creature between Follow and Stay, without changing stats, saves, breeding, combat behavior, or unrelated AI.
+The initial implementation is successful when:
+
+- the current installed Valheim assemblies compile cleanly against the patch;
+- wolf behavior remains correct;
+- tamed boar and hen/chicken gain native Follow / Stay;
+- unsaddled lox and asksvin can Follow / Stay;
+- saddled lox and asksvin remain under saddle authority;
+- wild creatures remain unaffected;
+- disabling or uninstalling Pied Piper restores vanilla behavior after restart;
+- no save/world migration dependency is introduced.
 
 Development and validation are tracked in [issue #6](https://github.com/Knapp-Kevin/WulfPack-mods/issues/6).
 
 ## Repository policy
 
-GitHub Actions are prohibited in WulfPack Mods. Pied Piper will be built and validated locally with zero Actions runs.
+GitHub Actions are prohibited in WulfPack Mods. Pied Piper is built and validated locally with zero Actions runs.
