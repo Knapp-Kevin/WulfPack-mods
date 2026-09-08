@@ -42,11 +42,14 @@ internal sealed class CooperativeWorkQueue
 
         while (_queue.Count > 0)
         {
-            IFrameBudgetWorkItem current = _queue.Peek();
+            IFrameBudgetWorkItem current = _queue.Dequeue();
             if (current.ExecuteSlice())
             {
-                _queue.Dequeue();
                 completed++;
+            }
+            else
+            {
+                _queue.Enqueue(current);
             }
 
             double elapsedMilliseconds = (Stopwatch.GetTimestamp() - start) / ticksPerMillisecond;
