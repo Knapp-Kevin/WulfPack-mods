@@ -39,13 +39,13 @@ Initial target:
 - Prefer native Valheim UI and behavior where practical.
 - Keep each mod independently removable without damaging a vanilla character or world whenever possible.
 
-## Validation policy
+## Build and validation policy
 
 **GitHub Actions are prohibited in this repository. The GitHub Actions budget is zero.**
 
-Do not add `.github/workflows` automation, hosted CI jobs, scheduled Actions, release workflows, dependency-update workflows that execute Actions, or other GitHub-hosted runners.
+Do not add `.github/workflows`, hosted CI jobs, scheduled Actions, release Actions, or Actions-based validation. Builds, tests, packaging, and in-game validation are performed locally unless an explicitly approved non-Actions mechanism is introduced later.
 
-Build, test, package, and release validation is performed locally or through explicitly approved non-GitHub-Actions tooling. A pull request is not considered validated merely because its source looks plausible; the relevant local build and in-game checks must be recorded before release confidence is claimed.
+Each mod should provide its own local build instructions or helper scripts so validation remains reproducible without hosted CI.
 
 ## Status
 
