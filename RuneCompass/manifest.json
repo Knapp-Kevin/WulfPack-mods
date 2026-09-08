@@ -1,0 +1,9 @@
+{
+  "name": "RuneCompass",
+  "version_number": "0.1.0",
+  "website_url": "https://github.com/Knapp-Kevin/WulfPack-mods",
+  "description": "An immersive, skinnable compass for Valheim No Map play with cardinal heading and wind direction.",
+  "dependencies": [
+    "denikson-BepInExPack_Valheim-5.4.2202"
+  ]
+}
