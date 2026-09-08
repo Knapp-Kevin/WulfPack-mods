@@ -25,7 +25,7 @@ Initial target:
 
 - configurable first warning before Rested expires
 - configurable final warning
-- expiration notification
+- no expiry message: Valheim already announces that itself
 - native Valheim messages
 - client-side only
 - BepInEx 5

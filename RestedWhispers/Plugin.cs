@@ -16,11 +16,9 @@ public sealed class Plugin : BaseUnityPlugin
     private ConfigEntry<bool> _enabled = null!;
     private ConfigEntry<float> _firstWarningSeconds = null!;
     private ConfigEntry<float> _finalWarningSeconds = null!;
-    private ConfigEntry<bool> _notifyOnExpiration = null!;
     private ConfigEntry<MessageHud.MessageType> _messagePosition = null!;
 
     private float _nextPollTime;
-    private bool _wasRested;
     private bool _firstWarningShown;
     private bool _finalWarningShown;
 
@@ -43,12 +41,6 @@ public sealed class Plugin : BaseUnityPlugin
             "FinalWarningSeconds",
             30f,
             "Remaining Rested time at which the final warning is shown.");
-
-        _notifyOnExpiration = Config.Bind(
-            "Warnings",
-            "NotifyOnExpiration",
-            true,
-            "Show a message when the Rested effect expires.");
 
         _messagePosition = Config.Bind(
             "General",
@@ -89,25 +81,15 @@ public sealed class Plugin : BaseUnityPlugin
         StatusEffect? rested = player.GetSEMan().GetStatusEffect(SEMan.s_statusEffectRested);
         if (rested == null)
         {
-            if (_wasRested && _notifyOnExpiration.Value)
-            {
-                Notify("You feel weary.");
-            }
-
+            // No expiry message here: Valheim already announces it through the
+            // effect's own m_stopMessage ("You're no longer rested"). Clearing
+            // state is what arms the warnings again for the next Rested cycle.
             ResetState();
             return;
         }
 
-        if (!_wasRested)
-        {
-            _wasRested = true;
-            _firstWarningShown = false;
-            _finalWarningShown = false;
-        }
-
         // Permanent effect (m_ttl == 0): GetRemaningTime() goes negative and
-        // would trip both thresholds at once. Latch above is set first, so a
-        // later real expiry still reports.
+        // would trip both thresholds at once.
         if (rested.m_ttl <= 0f)
         {
             return;
@@ -147,7 +129,6 @@ public sealed class Plugin : BaseUnityPlugin
 
     private void ResetState()
     {
-        _wasRested = false;
         _firstWarningShown = false;
         _finalWarningShown = false;
     }

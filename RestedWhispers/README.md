@@ -11,7 +11,10 @@ observes the existing Rested effect and displays native Valheim notifications.
 
 - 2 minutes remaining: `You're getting tired.`
 - 30 seconds remaining: `You long for the warmth of a fire.`
-- Rested expires: `You feel weary.`
+
+Rested Whispers deliberately says **nothing** when Rested actually ends. Valheim
+already announces that itself through the status effect's own stop message
+("You're no longer rested"), so a second message would just duplicate it.
 
 ## Configuration
 
@@ -22,7 +25,6 @@ BepInEx configuration (`BepInEx/config/com.wulfpack.restedwhispers.cfg`) exposes
 | `Enabled` | `true` | Master switch. `false` suppresses all notifications. |
 | `FirstWarningSeconds` | `120` | Seconds of Rested **remaining** when the first warning fires. |
 | `FinalWarningSeconds` | `30` | Seconds remaining when the final warning fires. |
-| `NotifyOnExpiration` | `true` | Whether to announce Rested ending. |
 | `MessagePosition` | `Center` | `Center` for Valheim's large banner text, or `TopLeft` for the small corner text used for item pickups. |
 
 Thresholds are measured in time **remaining**, not time elapsed, so the
@@ -35,8 +37,12 @@ final-warning threshold: if you set `FirstWarningSeconds` below
 are treated as zero at runtime.
 
 Each message fires at most once per Rested cycle, and re-acquiring Rested arms
-all three again. If the mod first sees Rested when you are already below the
-final threshold, only the final warning fires — you do not get both at once.
+both again. If the mod first sees Rested when you are already below the final
+threshold, only the final warning fires — you do not get both at once.
+
+If you ran an earlier build, your config file may still contain a
+`NotifyOnExpiration` entry. It is inert and can be deleted; BepInEx keeps
+orphaned keys rather than removing them.
 
 The config file is written on first launch, so it will not exist until you have
 run the game once with the mod installed. Edit it while the game is closed.
@@ -218,10 +224,11 @@ redistributing Iron Gate or Unity binaries.
    without plugin errors.
 4. Acquire the Rested effect.
 5. Verify exactly one notification appears at each configured threshold.
-6. Verify one expiration message appears when Rested ends.
+6. Verify the mod stays silent when Rested ends (Valheim's own "You're no longer rested" should be the only message).
 7. Acquire Rested again and verify the warning cycle resets.
 8. Set `Enabled = false` while Rested, let Rested expire, set it back to `true`,
-   and verify **no** stale expiration message appears.
+   and verify no stale message appears. The mod emits no expiry message at all,
+   so this failure mode is impossible by construction rather than merely guarded.
 9. With `Enabled = false`, verify no notifications appear at all.
 10. `.\RestedWhispers\build-local.ps1 -Uninstall`, then confirm the character and
     world still load with no migration or repair.
