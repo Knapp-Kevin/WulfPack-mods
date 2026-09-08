@@ -39,6 +39,14 @@ Initial target:
 - Prefer native Valheim UI and behavior where practical.
 - Keep each mod independently removable without damaging a vanilla character or world whenever possible.
 
+## Validation policy
+
+**GitHub Actions are prohibited in this repository. The GitHub Actions budget is zero.**
+
+Do not add `.github/workflows` automation, hosted CI jobs, scheduled Actions, release workflows, dependency-update workflows that execute Actions, or other GitHub-hosted runners.
+
+Build, test, package, and release validation is performed locally or through explicitly approved non-GitHub-Actions tooling. A pull request is not considered validated merely because its source looks plausible; the relevant local build and in-game checks must be recorded before release confidence is claimed.
+
 ## Status
 
 This repository is experimental. Rested Whispers is the first proof-of-capability project for establishing the WulfPack Valheim mod development, testing, packaging, and maintenance workflow.
