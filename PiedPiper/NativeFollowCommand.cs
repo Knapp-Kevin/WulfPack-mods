@@ -16,7 +16,7 @@ internal static class NativeFollowCommand
             return false;
         }
 
-        if (HasSaddle(tameable))
+        if (IsRideableCommandBlocked(tameable, log))
         {
             player.Message(MessageHud.MessageType.Center, "Pied Piper: remove the saddle before commanding this tame.");
             return false;
@@ -56,7 +56,7 @@ internal static class NativeFollowCommand
             }
 
             ParameterInfo[] parameters = method.GetParameters();
-            if (parameters.Length > 0 && typeof(Humanoid).IsAssignableFrom(parameters[0].ParameterType))
+            if (parameters.Length > 0 && parameters[0].ParameterType.IsAssignableFrom(typeof(Player)))
             {
                 return method;
             }
@@ -104,20 +104,27 @@ internal static class NativeFollowCommand
         return args;
     }
 
-    private static bool HasSaddle(Tameable tameable)
+    private static bool IsRideableCommandBlocked(Tameable tameable, ManualLogSource log)
     {
-        if (tameable.m_saddle == null || HaveSaddleMethod == null)
+        if (tameable.m_saddle == null)
         {
             return false;
+        }
+
+        if (HaveSaddleMethod == null)
+        {
+            log.LogError("Pied Piper could not resolve Tameable.HaveSaddle; rideable command blocked for safety.");
+            return true;
         }
 
         try
         {
             return HaveSaddleMethod.Invoke(tameable, null) is true;
         }
-        catch
+        catch (Exception ex)
         {
-            return false;
+            log.LogError($"Pied Piper could not read saddle state; rideable command blocked: {ex.Message}");
+            return true;
         }
     }
 }
