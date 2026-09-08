@@ -3,10 +3,9 @@
 ## Current status
 
 **Compiled, installed, loaded, and observed rendering correctly in a live No Map world.**
-Mechanical validation is complete. What remains is a short in-game pass that needs a
-human turning the camera — see [In-game acceptance](#in-game-acceptance).
+Mechanical validation is complete for PR #9's heading/wind correction. A follow-up UI split has now been added on the same branch and requires one local rebuild before PR #9 can be considered stable again.
 
-Issue #4 stays **open** until that pass is done.
+Issue #4 stays **open** until the operator acceptance pass is done.
 
 ## What is verified
 
@@ -20,9 +19,34 @@ Evidence gathered 2026-09-08 against the installed game
 | RC003 | Wind rotation is correct term by term | `verify-local.ps1`: `WindRotationZ` → 0/−90/−135/−212.5 |
 | RC010 | Lifecycle touches nothing it does not own | SHA-256 diff across install → disable → enable → uninstall: 100 save files, 2 sibling plugin files, 4 sibling config files byte-identical |
 | RC011 | Loads clean | `[Info :Rune Compass] Rune Compass 0.1.0 loaded.` — no Rune Compass error, warning, or exception anywhere in `LogOutput.log` |
-| RC012 | Section 4 Razor | `verify-local.ps1` § Razor: longest method 29 lines, largest file 246/250 |
+| RC012 | Section 4 Razor | `verify-local.ps1` § Razor passed before the UI split; rerun required after split |
 | — | HUD constructs and runs | `Rune Compass heading-up HUD created.` in a live world; no per-frame exception across a sustained session |
 | — | Orientation renders correctly | Screenshot at heading 344°: `N` right of top, `E` right-below, `S` left of bottom, `W` left-above — each at `bearing − heading` clockwise from screen-up. Wind 045° drawn up-and-right. Lubber amber at top |
+
+## UI split before skins
+
+`CompassUI.cs` had reached 246/250 lines, so the next implementation step was completed before skin work:
+
+- `CompassUI.cs` now owns state, layout application, bearing rotation, readouts, and disposal.
+- new `CompassUiFactory.cs` owns primitive Unity UI construction.
+- behavior and orientation math were intentionally left unchanged.
+- this creates room for a later skin renderer without forcing skin loading into the behavioral UI class.
+
+This refactor is **not yet locally compiled**. The next local gate must rerun both build and `verify-local.ps1` before additional visual changes are layered on top.
+
+## Screenshot-driven visual tuning targets
+
+The first live screenshot proves the primitive HUD is usable as a technical instrument, but not yet release-quality. The next visual cycle should address these in order:
+
+1. reduce the default visual footprint substantially;
+2. replace or minimize the opaque rectangular debug panel;
+3. move the cardinals onto the final circular/rune geometry;
+4. make heading and wind visually distinct through final artwork;
+5. retain numeric heading/wind readouts only as an optional diagnostic mode;
+6. bind `ClassicWood` first, then extract the reusable skin loader;
+7. prove a second skin changes presentation only.
+
+Do not combine these visual changes with the current UI split until the split has rebuilt and passed the existing local verification.
 
 ## What is not verified
 
@@ -72,10 +96,7 @@ run.
 
 **Heading-up.** Screen-up is always where you are looking. The rose carries the
 cardinal letters and rotates so each sits at its true bearing relative to your view; a
-fixed amber lubber marker at the top of the dial marks your facing. This is how a
-hand-held compass behaves, and it matches Valheim's own HUD convention — the game
-renders its ship wind indicator as a bearing taken in a reference frame, never as
-world-absolute rose letters.
+fixed amber lubber marker at the top of the dial marks your facing.
 
 Heading enters the UI in exactly one place, the rose's rotation. The wind needle is
 mounted on the rose and carries a pure world bearing; the heading term cancels in its
@@ -83,12 +104,9 @@ transform. Full derivation in `docs/ARCHITECTURE_PLAN.md` § Rune Compass.
 
 ## Corrections to earlier status
 
-Recorded because the previous revision of this file asserted them.
-
 - **The `m_windDir` fallback never existed.** `EnvMan` has no such field — the backing
   state is `m_wind` / `m_windDir1` / `m_windDir2`, all `Vector4` and non-public, and the
-  fallback filtered on `Vector3`, so it could never have bound. It was described here as
-  a resilience feature. Removed; `GetWindDir()` is now bound at compile time.
+  fallback filtered on `Vector3`, so it could never have bound. Removed; `GetWindDir()` is now bound at compile time.
 - **The first playable candidate did not build.** `build-local.ps1` had a parse error
   that killed every mode of the script, and the `.csproj` was missing two Unity module
   references. Both fixed. See `docs/SHADOW_GENOME.md` Failure #5.
@@ -104,8 +122,8 @@ Recorded because the previous revision of this file asserted them.
 
 ## Next
 
-Skins are a separate cycle, deliberately. `ClassicWood` first, then the loader
-extraction, then a second skin proving behaviour is untouched.
-
-**Before that cycle starts**: `CompassUI.cs` is at 246 lines of a 250 limit. Split it
-first rather than discovering the ceiling mid-way.
+1. Rebuild after the `CompassUI` / `CompassUiFactory` split.
+2. Rerun `verify-local.ps1` and confirm Razor still passes.
+3. Complete the remaining human in-game acceptance checklist.
+4. Merge PR #9 only when those results are recorded.
+5. Start the visual/skin cycle with `ClassicWood`, then extract the loader, then prove a second skin.
