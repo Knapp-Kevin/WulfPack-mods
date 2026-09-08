@@ -33,16 +33,18 @@ For each scenario, capture at least:
 
 ## Gate 0 metrics
 
-The initial instrumentation records CPU-facing frame metrics:
+The initial instrumentation records wall-clock frame-duration metrics using Unity's unscaled frame delta:
 
 - sample count
-- average frame time
-- p50 frame time
-- p95 frame time
-- p99 frame time
-- p99.9 frame time
-- maximum sampled frame time
-- average FPS derived from average frame time
+- average frame duration
+- p50 frame duration
+- p95 frame duration
+- p99 frame duration
+- p99.9 frame duration
+- maximum sampled frame duration
+- FPS equivalent derived from average frame duration
+
+These values include whatever pacing constraints are active, including VSync or a frame cap. They are not CPU profiler timings and must not be presented as such.
 
 Optional active-scene snapshots record counts for:
 
@@ -53,6 +55,7 @@ Optional active-scene snapshots record counts for:
 - colliders
 - rigidbodies
 - MonoBehaviours
+- the wall-clock cost of the snapshot itself
 
 These counts are diagnostic context, not optimization success metrics by themselves.
 
@@ -60,6 +63,8 @@ These counts are diagnostic context, not optimization success metrics by themsel
 
 When authoritative instrumentation is implemented, add:
 
+- CPU main-thread and render-thread timings
+- GPU frame timing where reliable
 - draw calls / batches
 - triangles / vertices
 - shadow-caster counts
@@ -99,6 +104,9 @@ Every benchmark record should capture:
 - GPU
 - RAM
 - resolution
+- fullscreen/window mode
+- VSync state / `vSyncCount`
+- target frame rate / external frame cap
 - graphics preset and relevant overrides
 - player count
 - notes on weather/time-of-day if visually consequential
@@ -106,6 +114,7 @@ Every benchmark record should capture:
 ## Measurement discipline
 
 - Use the same observation point and traversal route between comparable runs.
+- Keep VSync, frame caps, resolution, fullscreen mode, and graphics settings identical across comparable runs. For uncapped throughput comparisons, disable VSync and external caps deliberately and record that choice.
 - Do not compare a cold first shader/material load with a warmed subsequent run without labeling the distinction.
 - Prefer multiple runs and report spread, not one heroic screenshot.
 - Treat average FPS as insufficient. Large-build pain often appears in tail frame times and entry stalls.
