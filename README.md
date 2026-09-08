@@ -9,7 +9,7 @@ Each mod lives in its own top-level folder and should remain independently build
 ```text
 WulfPack-mods/
 ├── RestedWhispers/
-├── <FutureMod>/
+├── RuneCompass/
 └── README.md
 ```
 
@@ -21,22 +21,38 @@ Shared tooling may be added only when it clearly reduces duplication without cou
 
 A lightweight client-side quality-of-life mod that gently warns the player as the existing Rested effect begins to fade. It does not add a Tired debuff, alter balance, modify saves, or change multiplayer state.
 
-Initial target:
+Current behavior:
 
 - configurable first warning before Rested expires
 - configurable final warning
-- no expiry message: Valheim already announces that itself
+- no duplicate expiry message because Valheim already announces that itself
 - native Valheim messages
 - client-side only
 - BepInEx 5
-- no custom assets or world-state changes
+- no save or world-state changes
+- local install / disable / enable / status / uninstall workflow
 
-It is also trivially reversible. One command installs it, one disables it
-without deleting anything, and one removes it completely — deleting only its own
-three paths and never touching another BepInEx plugin. See
-[`RestedWhispers/README.md`](RestedWhispers/README.md) for the full
-install / disable / re-enable / uninstall workflow and the procedure for
-verifying you are mod-free before joining a server that prohibits mods.
+Rested Whispers has been built, tested, validated in-game, and accepted as the first completed WulfPack mod proof of capability. See [`RestedWhispers/README.md`](RestedWhispers/README.md) for usage and server-safety instructions.
+
+### Rune Compass
+
+Rune Compass is the second resident mod and the next complexity step. It is intended as an immersive navigation aid for No Map play without becoming a minimap or GPS overlay.
+
+Initial target:
+
+- cardinal orientation and player heading
+- wind direction as a first-class, visually distinct signal
+- wind shown by default as the direction it is blowing toward
+- interchangeable presentation-only skins
+- planned initial skin families: Classic Wood, Rune Ring, Minimal Nordic
+- configurable visibility, position, scale, and opacity
+- No Map aware by default
+- no save/world persistence for v0.1
+- clean local install / disable / enable / status / uninstall workflow
+
+Rune Compass follows the rule: **direction, not hidden information.** It does not initially include map pins, route guidance, boss/trader tracking, player tracking, hidden-location discovery, or server-side state.
+
+See [`RuneCompass/README.md`](RuneCompass/README.md), [`RuneCompass/IMPLEMENTATION_PLAN.md`](RuneCompass/IMPLEMENTATION_PLAN.md), and [`RuneCompass/STATUS.md`](RuneCompass/STATUS.md).
 
 ## Design rules
 
@@ -45,6 +61,7 @@ verifying you are mod-free before joining a server that prohibits mods.
 - Treat multiplayer synchronization and world persistence as explicit complexity boundaries.
 - Prefer native Valheim UI and behavior where practical.
 - Keep each mod independently removable without damaging a vanilla character or world whenever possible.
+- Keep presentation systems such as Rune Compass skins separate from gameplay logic.
 
 ## Build and validation policy
 
@@ -54,10 +71,9 @@ Do not add `.github/workflows`, hosted CI jobs, scheduled Actions, release Actio
 
 Each mod should provide its own local build instructions or helper scripts so validation remains reproducible without hosted CI.
 
-Mods target the **installed** game, never historical API signatures. Interface
-contracts are verified against the assemblies actually present on the machine
-before they are relied upon.
+Mods target the **installed** game, never historical API signatures. Interface contracts are verified against the assemblies actually present on the machine before they are relied upon.
 
 ## Status
 
-This repository is experimental. Rested Whispers is the first proof-of-capability project for establishing the WulfPack Valheim mod development, testing, packaging, and maintenance workflow.
+- **Rested Whispers:** implemented, tested, validated, and accepted.
+- **Rune Compass:** scaffolded and ready for implementation.
