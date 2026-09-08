@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using UnityEngine;
 
 namespace WulfPack.VidarShrugged;
@@ -6,37 +7,52 @@ internal static class ActiveSceneCounter
 {
     public static ActiveSceneSnapshot Capture()
     {
-        return new ActiveSceneSnapshot(
-            CountActive<Renderer>(),
-            CountActive<Light>(),
-            CountActive<ParticleSystem>(),
-            CountActive<AudioSource>(),
-            CountActive<Collider>(),
-            CountActive<Rigidbody>(),
-            CountActive<MonoBehaviour>());
-    }
+        long start = Stopwatch.GetTimestamp();
+        Component[] components = Resources.FindObjectsOfTypeAll<Component>();
 
-    private static int CountActive<T>() where T : Component
-    {
-        T[] components = Resources.FindObjectsOfTypeAll<T>();
-        int count = 0;
+        int renderers = 0;
+        int lights = 0;
+        int particleSystems = 0;
+        int audioSources = 0;
+        int colliders = 0;
+        int rigidbodies = 0;
+        int monoBehaviours = 0;
 
         for (int i = 0; i < components.Length; i++)
         {
-            T component = components[i];
+            Component component = components[i];
             if (component == null)
             {
                 continue;
             }
 
             GameObject gameObject = component.gameObject;
-            if (gameObject != null && gameObject.scene.IsValid() && gameObject.activeInHierarchy)
+            if (gameObject == null || !gameObject.scene.IsValid() || !gameObject.activeInHierarchy)
             {
-                count++;
+                continue;
             }
+
+            if (component is Renderer) renderers++;
+            if (component is Light) lights++;
+            if (component is ParticleSystem) particleSystems++;
+            if (component is AudioSource) audioSources++;
+            if (component is Collider) colliders++;
+            if (component is Rigidbody) rigidbodies++;
+            if (component is MonoBehaviour) monoBehaviours++;
         }
 
-        return count;
+        double elapsedMilliseconds =
+            (Stopwatch.GetTimestamp() - start) * 1000d / Stopwatch.Frequency;
+
+        return new ActiveSceneSnapshot(
+            renderers,
+            lights,
+            particleSystems,
+            audioSources,
+            colliders,
+            rigidbodies,
+            monoBehaviours,
+            elapsedMilliseconds);
     }
 }
 
@@ -49,7 +65,8 @@ internal readonly struct ActiveSceneSnapshot
         int audioSources,
         int colliders,
         int rigidbodies,
-        int monoBehaviours)
+        int monoBehaviours,
+        double elapsedMilliseconds)
     {
         Renderers = renderers;
         Lights = lights;
@@ -58,6 +75,7 @@ internal readonly struct ActiveSceneSnapshot
         Colliders = colliders;
         Rigidbodies = rigidbodies;
         MonoBehaviours = monoBehaviours;
+        ElapsedMilliseconds = elapsedMilliseconds;
     }
 
     public int Renderers { get; }
@@ -67,4 +85,5 @@ internal readonly struct ActiveSceneSnapshot
     public int Colliders { get; }
     public int Rigidbodies { get; }
     public int MonoBehaviours { get; }
+    public double ElapsedMilliseconds { get; }
 }
