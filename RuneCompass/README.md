@@ -6,36 +6,63 @@ Its job is intentionally narrow: show orientation and wind direction without bec
 
 > Rune Compass gives you direction, not information.
 
-## Initial release target
+## Current implementation
 
-- Show cardinal orientation and player heading.
-- Show wind direction as a distinct secondary indicator.
-- Show by default only when No Map mode is active, with a configurable override.
-- Support interchangeable visual skins without changing compass behavior.
-- Support configurable position, scale, and opacity.
-- Remain client-side where practical.
-- Avoid save mutation, world-state mutation, prefabs, progression hooks, map markers, route guidance, and server authority in the first release.
-- Install, disable, re-enable, inspect status, and uninstall cleanly with local tooling.
-- Use zero GitHub Actions.
+The first playable technical proof is implemented and merged into the repository. Local compile and in-game validation against the installed Valheim build remain tracked in issue #4.
+
+Implemented now:
+
+- camera-based heading calculation
+- cardinal direction display
+- No Map-aware visibility through Valheim's current `Game.m_noMap` state
+- live wind direction provider using `EnvMan`
+- separate heading and wind indicators
+- wind semantics defined as direction **toward**
+- configurable enable state, scale, opacity, X/Y position, and heading calibration
+- local build / install / disable / enable / status / uninstall workflow
+- no save or world-state mutation
+- zero GitHub Actions
+
+The current HUD is deliberately primitive. It exists to prove mechanics before final skin assets are bound.
+
+## Local build and install
+
+From the repository root:
+
+```powershell
+.\RuneCompass\build-local.ps1
+.\RuneCompass\build-local.ps1 -Install
+```
+
+Other lifecycle commands:
+
+```powershell
+.\RuneCompass\build-local.ps1 -Status
+.\RuneCompass\build-local.ps1 -Disable
+.\RuneCompass\build-local.ps1 -Enable
+.\RuneCompass\build-local.ps1 -Uninstall
+```
+
+These commands are local only. This repository does not use GitHub Actions.
 
 ## Wind behavior
 
 Wind is a first-class Rune Compass signal, not decorative polish.
 
-The compass should clearly distinguish:
+The compass distinguishes:
 
 - **heading / cardinal orientation**: where the player is facing relative to north; and
 - **wind direction**: where the current world wind is blowing.
 
-The default design should visualize the direction the wind is blowing **toward**. The implementation and UI copy must make that convention explicit so the indicator cannot be mistaken for the meteorological "coming from" convention.
+The default design visualizes the direction the wind is blowing **toward**. That convention is explicit so it cannot be mistaken for the meteorological "coming from" convention.
 
-Heading and wind calculations should remain separate in code even if both ultimately drive rotating UI elements.
+Heading and wind calculations remain separate in code even though both drive directional UI elements.
 
 ## Skin system
 
 Skins control presentation only. They must not change gameplay behavior.
 
-A skin may define:
+A skin may eventually define:
 
 - base / face texture
 - outer ring texture
@@ -45,17 +72,15 @@ A skin may define:
 - pointer pivot and visual offsets
 - default visual scale or opacity where needed for alignment
 
-The selected skin should come from normal BepInEx configuration. Runtime hot-swapping is optional for the first release; changing config and restarting is acceptable.
-
 Planned initial skin families:
 
 1. **Classic Wood**: carved wooden face, restrained metal framing, simple pointer.
 2. **Rune Ring**: darker runic ring treatment with stronger Norse ornament.
 3. **Minimal Nordic**: compact, highly readable treatment for players who want less HUD weight.
 
-Existing compass concept art from the project discussion should be curated into these roles rather than copied wholesale into every skin.
+Existing compass concept art should be curated into these roles rather than copied wholesale into every skin.
 
-## Proposed structure
+## Structure
 
 ```text
 RuneCompass/
@@ -64,22 +89,20 @@ RuneCompass/
 ├── CompassUI.cs
 ├── HeadingProvider.cs
 ├── WindProvider.cs
-├── SkinDefinition.cs
-├── SkinLoader.cs
 ├── RuneCompass.csproj
 ├── build-local.ps1
 ├── manifest.json
+├── icon.png
 ├── README.md
+├── IMPLEMENTATION_PLAN.md
+├── STATUS.md
 └── Assets/
     └── Skins/
-        ├── ClassicWood/
-        ├── RuneRing/
-        └── MinimalNordic/
 ```
 
-Only create abstraction where the working implementation earns it. The first technical proof should get one skin rendering and rotating correctly before the skin loader grows teeth.
+`SkinDefinition` and `SkinLoader` are intentionally not implemented yet. The working compass behavior should earn the abstraction before it is introduced.
 
-## v0.1 acceptance criteria
+## Validation checklist
 
 - [ ] Builds locally against the installed Valheim + BepInEx assemblies.
 - [ ] Loads with no BepInEx plugin errors.
@@ -90,15 +113,16 @@ Only create abstraction where the working implementation earns it. The first tec
 - [ ] Cardinal orientation is correct at N, E, S, and W.
 - [ ] Wind indicator is visually distinct from heading.
 - [ ] Wind indicator rotates correctly as Valheim wind changes.
+- [ ] Wind direction matches the documented **toward** convention.
 - [ ] Display position, scale, and opacity are configurable.
-- [ ] At least two skins can be selected without changing behavior logic.
 - [ ] Disable suppresses the UI completely.
+- [ ] Enable restores it cleanly.
 - [ ] Uninstall leaves no save or world dependency.
 - [ ] After uninstall, Rune Compass is absent from active BepInEx plugin paths and logs.
 - [ ] Other installed BepInEx plugins are untouched.
 - [ ] No GitHub Actions are added or run.
 
-## Explicitly out of scope for v0.1
+## Explicitly out of scope for the current slice
 
 - minimap replacement
 - map pins or markers
@@ -111,6 +135,6 @@ Only create abstraction where the working implementation earns it. The first tec
 - multiplayer config synchronization
 - server-side state
 - world/save persistence
-- animated or behavior-specific skins
+- final multi-skin implementation
 
-Those may be discussed later. They are not prerequisites for proving Rune Compass.
+Those may be considered later. They are not prerequisites for proving Rune Compass.

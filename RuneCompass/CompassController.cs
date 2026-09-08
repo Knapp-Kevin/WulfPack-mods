@@ -1,0 +1,110 @@
+using System;
+using BepInEx.Logging;
+using UnityEngine;
+
+namespace WulfPack.RuneCompass;
+
+internal sealed class CompassController : IDisposable
+{
+    private readonly ManualLogSource _log;
+    private readonly Func<bool> _enabled;
+    private readonly Func<bool> _onlyInNoMap;
+    private readonly Func<float> _scale;
+    private readonly Func<float> _opacity;
+    private readonly Func<Vector2> _offset;
+    private readonly Func<float> _headingOffset;
+    private readonly HeadingProvider _headingProvider = new();
+    private readonly WindProvider _windProvider;
+
+    private CompassUI? _ui;
+    private float _nextUpdateTime;
+
+    public CompassController(
+        ManualLogSource log,
+        Func<bool> enabled,
+        Func<bool> onlyInNoMap,
+        Func<float> scale,
+        Func<float> opacity,
+        Func<Vector2> offset,
+        Func<float> headingOffset)
+    {
+        _log = log;
+        _enabled = enabled;
+        _onlyInNoMap = onlyInNoMap;
+        _scale = scale;
+        _opacity = opacity;
+        _offset = offset;
+        _headingOffset = headingOffset;
+        _windProvider = new WindProvider(log);
+    }
+
+    public void Tick()
+    {
+        if (!_enabled())
+        {
+            Hide();
+            return;
+        }
+
+        if (_onlyInNoMap() && !Game.m_noMap)
+        {
+            Hide();
+            return;
+        }
+
+        if (Player.m_localPlayer == null)
+        {
+            Hide();
+            return;
+        }
+
+        if (Time.unscaledTime < _nextUpdateTime)
+        {
+            return;
+        }
+
+        _nextUpdateTime = Time.unscaledTime + 0.05f;
+
+        if (!_headingProvider.TryGetHeadingDegrees(_headingOffset(), out float heading))
+        {
+            Hide();
+            return;
+        }
+
+        EnsureUi();
+        _ui!.SetVisible(true);
+        _ui.ApplyLayout(_scale(), _opacity(), _offset());
+        _ui.SetHeading(heading);
+
+        if (_windProvider.TryGetWindTowardDegrees(out float wind))
+        {
+            _ui.SetWind(wind);
+        }
+        else
+        {
+            _ui.SetWind(null);
+        }
+    }
+
+    public void Dispose()
+    {
+        _ui?.Dispose();
+        _ui = null;
+    }
+
+    private void EnsureUi()
+    {
+        if (_ui != null)
+        {
+            return;
+        }
+
+        _ui = new CompassUI();
+        _log.LogInfo("Rune Compass primitive HUD created.");
+    }
+
+    private void Hide()
+    {
+        _ui?.SetVisible(false);
+    }
+}
