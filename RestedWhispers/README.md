@@ -45,7 +45,7 @@ If Valheim is installed elsewhere:
 .\RestedWhispers\build-local.ps1 -ValheimRoot "D:\SteamLibrary\steamapps\common\Valheim" -Install
 ```
 
-The helper validates that `assembly_valheim.dll` and `BepInEx.dll` exist before attempting the build.
+The helper validates the .NET SDK, `assembly_valheim.dll`, and `BepInEx.dll` before attempting the build.
 
 ### Manual build
 
@@ -75,6 +75,10 @@ The project intentionally references the locally installed game assemblies rathe
 9. Disable the mod in config and verify no notifications appear.
 10. Remove the DLL and verify the character/world remain usable without migration or repair.
 11. Smoke-test joining a multiplayer or dedicated-server world as a client.
+
+## Packaging status
+
+`manifest.json` is present, but a Thunderstore release package is intentionally not considered complete yet. A final package still needs a proper `icon.png`, the validated release DLL, and a local package-content check after in-game acceptance testing.
 
 ## Scope boundary
 
