@@ -60,6 +60,10 @@ public sealed class Plugin : BaseUnityPlugin
 
         Logger.LogInfo($"{PluginName} {PluginVersion} loaded in read-only Gate 0 mode.");
         Logger.LogInfo($"Unity {Application.unityVersion}; game version {Application.version}; GPU: {SystemInfo.graphicsDeviceName}.");
+        Logger.LogInfo(
+            $"Frame pacing context: vSyncCount={QualitySettings.vSyncCount}, " +
+            $"targetFrameRate={Application.targetFrameRate}, " +
+            $"resolution={Screen.width}x{Screen.height}, fullscreen={Screen.fullScreen}.");
     }
 
     private void Update()
@@ -110,7 +114,7 @@ public sealed class Plugin : BaseUnityPlugin
         }
 
         Logger.LogInfo(
-            $"Frame metrics ({snapshot.SampleCount} samples): " +
+            $"Frame duration ({snapshot.SampleCount} samples): " +
             $"avg {snapshot.AverageMs:F2} ms (~{snapshot.AverageFps:F1} FPS equivalent), " +
             $"p50 {snapshot.P50Ms:F2} ms, p95 {snapshot.P95Ms:F2} ms, " +
             $"p99 {snapshot.P99Ms:F2} ms, p99.9 {snapshot.P999Ms:F2} ms, max {snapshot.MaxMs:F2} ms.");
