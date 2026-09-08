@@ -4,6 +4,6 @@
   "website_url": "https://github.com/Knapp-Kevin/WulfPack-mods",
   "description": "Gentle, client-side Valheim reminders as your existing Rested effect begins to fade. No new debuffs or balance changes.",
   "dependencies": [
-    "denikson-BepInExPack_Valheim-5.4.2333"
+    "denikson-BepInExPack_Valheim-5.4.2202"
   ]
 }

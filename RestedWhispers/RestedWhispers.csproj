@@ -1,6 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <!-- netstandard2.1: Valheim runs on Unity 6 (6000.0.61), whose
+         UnityEngine.CoreModule references netstandard 2.1. Targeting 2.0
+         fails reference resolution with CS1705. -->
+    <TargetFramework>netstandard2.1</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
@@ -8,6 +11,11 @@
     <RootNamespace>WulfPack.RestedWhispers</RootNamespace>
     <Version>0.1.0</Version>
     <Deterministic>true</Deterministic>
+    <!-- MSB3277: referencing the game's Managed folder unavoidably surfaces
+         System.Net.Http / netstandard version conflicts between Unity's
+         assembly set and the netstandard2.1 reference pack. They do not affect
+         the emitted assembly. Demoted to messages so a real warning stands out. -->
+    <MSBuildWarningsAsMessages>MSB3277</MSBuildWarningsAsMessages>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,6 +25,12 @@
     </Reference>
     <Reference Include="assembly_valheim">
       <HintPath>$(VALHEIM_MANAGED)/assembly_valheim.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- UnityEngine.dll is the type-forwarding shim MonoBehaviour resolves
+         through; without it BaseUnityPlugin's base type fails with CS0012. -->
+    <Reference Include="UnityEngine">
+      <HintPath>$(VALHEIM_MANAGED)/UnityEngine.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="UnityEngine.CoreModule">
@@ -30,6 +44,7 @@
     <Error Condition="'$(VALHEIM_MANAGED)' == ''" Text="Set VALHEIM_MANAGED to valheim_Data/Managed for your Valheim installation." />
     <Error Condition="'$(BEPINEX_CORE)' != '' and !Exists('$(BEPINEX_CORE)/BepInEx.dll')" Text="BepInEx.dll was not found under BEPINEX_CORE." />
     <Error Condition="'$(VALHEIM_MANAGED)' != '' and !Exists('$(VALHEIM_MANAGED)/assembly_valheim.dll')" Text="assembly_valheim.dll was not found under VALHEIM_MANAGED." />
+    <Error Condition="'$(VALHEIM_MANAGED)' != '' and !Exists('$(VALHEIM_MANAGED)/UnityEngine.dll')" Text="UnityEngine.dll was not found under VALHEIM_MANAGED." />
     <Error Condition="'$(VALHEIM_MANAGED)' != '' and !Exists('$(VALHEIM_MANAGED)/UnityEngine.CoreModule.dll')" Text="UnityEngine.CoreModule.dll was not found under VALHEIM_MANAGED." />
   </Target>
 </Project>

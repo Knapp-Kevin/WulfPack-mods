@@ -31,6 +31,13 @@ Initial target:
 - BepInEx 5
 - no custom assets or world-state changes
 
+It is also trivially reversible. One command installs it, one disables it
+without deleting anything, and one removes it completely — deleting only its own
+three paths and never touching another BepInEx plugin. See
+[`RestedWhispers/README.md`](RestedWhispers/README.md) for the full
+install / disable / re-enable / uninstall workflow and the procedure for
+verifying you are mod-free before joining a server that prohibits mods.
+
 ## Design rules
 
 - Prefer small, well-bounded mods over sprawling feature bundles.
@@ -46,6 +53,10 @@ Initial target:
 Do not add `.github/workflows`, hosted CI jobs, scheduled Actions, release Actions, or Actions-based validation. Builds, tests, packaging, and in-game validation are performed locally unless an explicitly approved non-Actions mechanism is introduced later.
 
 Each mod should provide its own local build instructions or helper scripts so validation remains reproducible without hosted CI.
+
+Mods target the **installed** game, never historical API signatures. Interface
+contracts are verified against the assemblies actually present on the machine
+before they are relied upon.
 
 ## Status
 

@@ -78,7 +78,7 @@ public sealed class Plugin : BaseUnityPlugin
             return;
         }
 
-        StatusEffect? rested = player.GetSEMan().GetStatusEffect("Rested");
+        StatusEffect? rested = player.GetSEMan().GetStatusEffect(SEMan.s_statusEffectRested);
         if (rested == null)
         {
             if (_wasRested && _notifyOnExpiration.Value)
@@ -97,6 +97,19 @@ public sealed class Plugin : BaseUnityPlugin
             _finalWarningShown = false;
         }
 
+        // Permanent effect (m_ttl == 0): GetRemaningTime() goes negative and
+        // would trip both thresholds at once. Latch above is set first, so a
+        // later real expiry still reports.
+        if (rested.m_ttl <= 0f)
+        {
+            return;
+        }
+
+        EvaluateThresholds(rested);
+    }
+
+    private void EvaluateThresholds(StatusEffect rested)
+    {
         float remaining = rested.GetRemaningTime();
         float finalThreshold = Mathf.Max(0f, _finalWarningSeconds.Value);
         float firstThreshold = Mathf.Max(finalThreshold, _firstWarningSeconds.Value);
