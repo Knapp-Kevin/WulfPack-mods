@@ -23,6 +23,25 @@ Internally, heading enters the UI in exactly one place — the rose's rotation. 
 mounted on the rose is positioned by pure world bearing, and the heading term cancels in
 its transform. The derivation is written out in `docs/ARCHITECTURE_PLAN.md`.
 
+## Configuration
+
+Written to `BepInEx/config/com.wulfpack.runecompass.cfg` on first run. BepInEx does not
+watch the file, so changes take effect on the next launch.
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `Enabled` | `true` | Master switch. |
+| `OnlyInNoMap` | `true` | Show only in No Map worlds. Set `false` to keep it in normal worlds too. |
+| `Anchor` | `TopRight` | Screen corner to pin to: `TopRight`, `TopCenter`, `TopLeft`, `BottomRight`, `BottomLeft`. `TopRight` is where the minimap would be. |
+| `Scale` | `1` | HUD scale multiplier, floored at `0.25`. |
+| `Opacity` | `0.9` | HUD opacity, clamped to 0–1. |
+| `OffsetX` | `0` | Nudge from the anchored resting position. Positive is right. |
+| `OffsetY` | `0` | Nudge from the anchored resting position. Positive is up. |
+| `HeadingOffsetDegrees` | `0` | Clockwise calibration offset. Leave at `0` — the bearing convention already matches the game's own. |
+
+Anchoring to a corner rather than to absolute pixels keeps the compass in place across
+resolutions and aspect ratios.
+
 ## Current implementation
 
 Compiled against the installed Valheim build, installed, loaded, and observed rendering
@@ -36,7 +55,8 @@ Implemented now:
 - No Map-aware visibility through `Game.m_noMap`
 - live wind direction from `EnvMan.GetWindDir()`, bound at compile time
 - wind semantics defined as direction **toward**
-- configurable enable state, scale, opacity, X/Y position, and heading calibration
+- pinned to a screen corner, defaulting to top-right where the minimap would be
+- configurable anchor, scale, opacity, position nudge, enable state, and heading calibration
 - local build / install / disable / enable / status / uninstall workflow
 - local verification of the angle conventions and the Section 4 line limits
 - no save or world-state mutation
@@ -100,13 +120,17 @@ skin chooses artwork for those layers; it never chooses which of them rotate.
 
 A skin may eventually define:
 
-- base / face texture
-- outer ring texture
-- heading pointer texture
-- wind pointer texture
-- optional north marker
-- pointer pivot and visual offsets
+- `base.png` — static back plate
+- `ring.png` — the rotating card carrying the cardinal marks
+- optional `ring_marks.png` — cardinal glyphs, if not baked into the ring
+- `wind_pointer.png` — mounted on the card, carries a pure world bearing
+- optional `north_marker.png` — mounted on the card at bearing 0
+- a static lubber marker for "you are looking this way"
+- pivot metadata and visual offsets
 - default visual scale or opacity where needed for alignment
+
+There is deliberately **no rotating heading pointer**: under heading-up your facing is
+always screen-up, so the lubber marker is static and the card moves instead.
 
 Planned initial skin families:
 
@@ -120,12 +144,14 @@ Existing compass concept art should be curated into these roles rather than copi
 
 ```text
 RuneCompass/
-├── Plugin.cs
-├── CompassController.cs
-├── CompassUI.cs
-├── Bearing.cs
-├── HeadingProvider.cs
-├── WindProvider.cs
+├── Plugin.cs               BepInEx lifecycle + configuration
+├── CompassController.cs    visibility rules, per-frame update
+├── CompassUI.cs            runtime UI state, rotation, readouts, disposal
+├── CompassUiFactory.cs     primitive Unity UI construction
+├── HudAnchor.cs            screen-corner anchoring
+├── Bearing.cs              angle math + the two UI rotation mappings
+├── HeadingProvider.cs      camera forward -> world bearing
+├── WindProvider.cs         EnvMan.GetWindDir() -> world bearing
 ├── RuneCompass.csproj
 ├── build-local.ps1
 ├── verify-local.ps1

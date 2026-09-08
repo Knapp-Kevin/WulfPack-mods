@@ -2,10 +2,14 @@
 
 ## Current status
 
-**Compiled, installed, loaded, and observed rendering correctly in a live No Map world.**
-Mechanical validation is complete for PR #9's heading/wind correction. A follow-up UI split has now been added on the same branch and requires one local rebuild before PR #9 can be considered stable again.
+**Revalidated after the `CompassUI` / `CompassUiFactory` split.** Build, verification and
+runtime all green on the current branch head, and the split is proven behaviour-preserving
+rather than merely assumed.
 
-Issue #4 stays **open** until the operator acceptance pass is done.
+The compass now anchors to the **top-right corner**, taking the place of the minimap it
+replaces in No Map play. Previously it sat top-centre.
+
+Issue #4 stays **open** until the operator acceptance items are recorded.
 
 ## What is verified
 
@@ -23,16 +27,48 @@ Evidence gathered 2026-09-08 against the installed game
 | — | HUD constructs and runs | `Rune Compass heading-up HUD created.` in a live world; no per-frame exception across a sustained session |
 | — | Orientation renders correctly | Screenshot at heading 344°: `N` right of top, `E` right-below, `S` left of bottom, `W` left-above — each at `bearing − heading` clockwise from screen-up. Wind 045° drawn up-and-right. Lubber amber at top |
 
-## UI split before skins
+## UI split before skins — verified
 
-`CompassUI.cs` had reached 246/250 lines, so the next implementation step was completed before skin work:
+`CompassUI.cs` had reached 246/250 lines, so it was split before skin work:
 
-- `CompassUI.cs` now owns state, layout application, bearing rotation, readouts, and disposal.
-- new `CompassUiFactory.cs` owns primitive Unity UI construction.
-- behavior and orientation math were intentionally left unchanged.
-- this creates room for a later skin renderer without forcing skin loading into the behavioral UI class.
+- `CompassUI.cs` (**117** lines) owns runtime state, visibility, layout application,
+  bearing rotation, readouts and disposal.
+- `CompassUiFactory.cs` (**148** lines) owns primitive Unity UI construction.
 
-This refactor is **not yet locally compiled**. The next local gate must rerun both build and `verify-local.ps1` before additional visual changes are layered on top.
+**The split changed no behaviour, and that is measured rather than claimed.** Every
+construction-relevant literal — anchors, pivots, sizes, offsets, colours, canvas settings,
+font, cardinal placements, needle dimensions, raycast flags — was extracted from the
+pre-split file and from the post-split pair and compared as multisets:
+
+```text
+construction literals: pre-split=48  post-split=48
+RESULT: IDENTICAL - every construction literal matches; none added, none dropped.
+```
+
+The `_rose` centre-anchor/pivot configuration survived intact (this was audit finding
+F-I1, where an unset `RectTransform` would have made the card orbit the panel corner), as
+did cardinals-and-needle-on-rose, lubber-on-panel, and construction order.
+
+| Gate | Result |
+|---|---|
+| Release build | 0 warnings, 0 errors |
+| `verify-local.ps1` | 25 angle assertions + Razor, exit 0 |
+| Razor headroom | largest file 148/250; longest method 32 |
+| Runtime | `Rune Compass 0.1.0 loaded.` + `heading-up HUD created.`, zero Rune Compass errors |
+
+## Placement: top-right
+
+The compass is pinned to a screen **corner** rather than positioned by absolute pixels, so
+it holds its place across resolutions and aspect ratios.
+
+- New `Anchor` config: `TopRight` (default), `TopCenter`, `TopLeft`, `BottomRight`,
+  `BottomLeft`.
+- `OffsetX` / `OffsetY` are now a **nudge from the anchored resting position**, defaulting
+  to `0`, rather than an absolute offset from top-centre. Positive X is right, positive Y
+  is up.
+
+This changes the meaning of the two offset values, so an existing
+`com.wulfpack.runecompass.cfg` should be regenerated rather than carried forward.
 
 ## Screenshot-driven visual tuning targets
 
@@ -50,47 +86,69 @@ Do not combine these visual changes with the current UI split until the split ha
 
 ## What is not verified
 
-Honest boundary. The local harness invokes pure functions by reflection over the
-compiled DLL; it cannot construct Unity `GameObject`s or `RectTransform`s, so it never
-observes parenting or rendering. Everything below needs eyes on the screen.
+Three items remain, all needing operator judgement rather than a measurement:
 
-- A **full 360° turn** — orientation is confirmed at one heading (344°), not swept.
-- Whether the wind needle agrees with **observable** world wind (smoke, sail, grass),
-  as opposed to being drawn correctly for the number `GetWindDir()` reports.
-- The No Map **hide** case and the `OnlyInNoMap = false` override.
-- `Scale`, `Opacity`, `OffsetX/Y` visual effect.
-- Whether **camera-sourced heading reads well in third person**, where the camera
-  orbits independently of the body (open question 1).
-- Whether **rotating cardinal glyphs** read acceptably — `S` is upside down when facing
-  south, which is authentic to a physical compass card but is a taste call
-  (open question 2).
+- **Wind against observable world wind** (smoke from a fire, a sail, grass). The needle is
+  drawn correctly for the bearing `GetWindDir()` reports, and that API's downwind
+  convention is proven from `Ship.GetWindAngleFactor()` — but nobody has yet stood next to
+  a fire and confirmed the smoke agrees.
+- **`OnlyInNoMap = false` in a map-enabled world.** The default (hide) path is confirmed;
+  the override is not.
+- **Third-person camera orbit.** Heading is camera-sourced, so the rose turns while the
+  body stays still. Whether that reads correctly is a taste call (open question 1).
 
-## In-game acceptance
+A fourth is now answered, and the answer is *no*: **rotating cardinal glyphs do not read
+well.** At heading 178 the letters are upside down — `E` renders as `Ǝ`, `W` as `M`. It is
+authentic to a physical compass card and it is hard to read. See "Legibility finding".
 
-Run these and record the result on issue #4. Install first:
+## In-game acceptance — results
 
-```powershell
-.\RuneCompass\build-local.ps1 -Install
-```
+Recorded 2026-09-08 against the installed game, on the post-split, top-right build.
 
-| # | Step | Expect |
+| # | Item | Result |
 |---|---|---|
-| 1 | Launch Valheim, check `BepInEx/LogOutput.log` | `Rune Compass 0.1.0 loaded.`, no Rune Compass error |
-| 2 | Enter a **No Map** world | `Rune Compass heading-up HUD created.` |
-| 3 | Look at the HUD | Dial at top centre; `N`/`E`/`S`/`W` on the card; amber marker fixed at top |
-| 4 | Enter a **normal** (map-enabled) world | Compass hidden |
-| 5 | Set `OnlyInNoMap = false`, restart, normal world | Compass visible |
-| 6 | **Turn slowly through a full circle** | Card rotates smoothly; when `N` is at the top marker the readout reads ≈`000° N`; letters stay on their true bearings the whole way round |
-| 7 | Face a known direction and check the readout | Degrees and cardinal agree with where you are actually looking |
-| 8 | Compare the wind needle against smoke from a fire, or a sail | Needle points where the wind **blows toward**, not where it comes from |
-| 9 | Third person, orbit the camera without moving | Decide whether camera-sourced heading reads correctly (open question 1) |
-| 10 | Set `Scale`, then `Opacity`, then `OffsetX`/`OffsetY`, restarting between | Each changes the HUD as documented |
-| 11 | `.\RuneCompass\build-local.ps1 -Disable`, relaunch | No compass, no Rune Compass line in the log |
-| 12 | `-Enable`, relaunch | Compass returns |
-| 13 | `-Uninstall`, relaunch | No Rune Compass plugin load; Rested Whispers and Jotunheim still load; character and world unchanged |
+| 1 | Full 360 rotation | **PASS** — four quadrants sampled at headings 357, 274, 178 and 088. Every cardinal landed on `bearing - heading` clockwise from screen-up, and the wind needle was correct in all four while world wind held constant at 141 |
+| 2 | Map-enabled world hides the compass | **PASS** — operator confirmed; compass absent in a minimap world with the default `OnlyInNoMap = true` |
+| 3 | `OnlyInNoMap = false` shows it in a normal world | not yet run |
+| 4 | Wind agrees with observable wind | not yet run |
+| 5 | `Scale` | **PASS** — applied live at 0.55, 0.7 and 1.0 |
+| 6 | `Opacity` | **PASS** — applied live at 0.30 and 0.9 |
+| 7 | `OffsetX` / `OffsetY` | **PASS** — applied live as a nudge from the anchor |
+| 8 | Third-person orbit judgement | not yet run |
+| 9 | Disable across restart | **PASS** — Rune Compass absent from the log; Rested Whispers and Jotunheim still loaded |
+| 10 | Enable across restart | **PASS** — returns |
+| 11 | Uninstall across restart | **PASS** — absent; siblings intact |
+| 12 | No Rune Compass load after uninstall | **PASS** |
+| 13 | Unrelated plugins intact | **PASS** |
+| 14 | Character / world unchanged | **PASS** — 101 save files, 2 sibling plugin files and 4 sibling config files byte-identical across the full lifecycle |
 
-Config lives at `BepInEx/config/com.wulfpack.runecompass.cfg` and is written on first
-run.
+Also proven in the same session: the `Anchor` config switches the compass between corners
+(`TopRight` to `TopCenter` observed live), and `ConfigWatcher` reloads the config without a
+restart (16 reloads observed, no relaunch).
+
+### Why the visual items could not be automated
+
+An unattended launch stops at the main menu. `CompassController` only builds the HUD once
+`Player.m_localPlayer` is non-null, so no world means no HUD, and a scripted sweep captures
+nothing but the title screen. Loading a world needs a human at the menu. That is why the
+rotation evidence above comes from operator screenshots rather than from the harness.
+
+`ConfigWatcher` exists to make the rest cheap: with the game already in a world, config can
+be retuned live instead of costing a relaunch plus a world load per value.
+
+## Legibility finding: rotating glyphs
+
+The cardinal letters are children of the rose, so they rotate with the card. At southerly
+headings they are upside down (`E` as `Ǝ`, `W` as `M`, `N` inverted).
+
+This is faithful to a physical compass card, and it is the wrong call for a HUD read at a
+glance. The fix is to counter-rotate each glyph by `-heading` so the letters stay upright
+while their *positions* still travel around the ring. The card still rotates; only the
+glyph orientation is pinned. This costs one transform per letter and changes no bearing
+math.
+
+Carried into the visual cycle rather than patched here, so the change lands with the
+artwork that replaces these placeholder glyphs.
 
 ## Orientation model
 

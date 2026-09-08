@@ -62,10 +62,10 @@ internal sealed class CompassUI : IDisposable
         _root.SetActive(visible);
     }
 
-    public void ApplyLayout(float scale, float opacity, Vector2 offset)
+    public void ApplyLayout(float scale, float opacity, Vector2 offset, HudAnchor anchor)
     {
         _panel.localScale = Vector3.one * scale;
-        _panel.anchoredPosition = offset;
+        HudAnchorLayout.Apply(_panel, anchor, offset);
         _canvasGroup.alpha = opacity;
     }
 

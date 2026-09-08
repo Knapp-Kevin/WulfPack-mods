@@ -32,8 +32,8 @@ internal static class CompassUiFactory
     {
         GameObject panelObject = CreateUiObject("CompassPanel", parent);
         RectTransform panel = panelObject.GetComponent<RectTransform>();
-        panel.anchorMin = new Vector2(0.5f, 1f);
-        panel.anchorMax = new Vector2(0.5f, 1f);
+        // Anchor and position are owned by HudAnchorLayout, applied every frame from
+        // config, so the compass can be pinned to whichever corner the player wants.
         panel.pivot = new Vector2(0.5f, 0.5f);
         panel.sizeDelta = new Vector2(190f, 190f);
 

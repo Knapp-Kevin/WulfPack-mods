@@ -12,6 +12,7 @@ internal sealed class CompassController : IDisposable
     private readonly Func<float> _scale;
     private readonly Func<float> _opacity;
     private readonly Func<Vector2> _offset;
+    private readonly Func<HudAnchor> _anchor;
     private readonly Func<float> _headingOffset;
     private readonly HeadingProvider _headingProvider = new();
     private readonly WindProvider _windProvider = new();
@@ -25,6 +26,7 @@ internal sealed class CompassController : IDisposable
         Func<float> scale,
         Func<float> opacity,
         Func<Vector2> offset,
+        Func<HudAnchor> anchor,
         Func<float> headingOffset)
     {
         _log = log;
@@ -33,6 +35,7 @@ internal sealed class CompassController : IDisposable
         _scale = scale;
         _opacity = opacity;
         _offset = offset;
+        _anchor = anchor;
         _headingOffset = headingOffset;
     }
 
@@ -52,7 +55,7 @@ internal sealed class CompassController : IDisposable
 
         EnsureUi();
         _ui!.SetVisible(true);
-        _ui.ApplyLayout(_scale(), _opacity(), _offset());
+        _ui.ApplyLayout(_scale(), _opacity(), _offset(), _anchor());
         _ui.SetHeading(heading);
         _ui.SetWind(_windProvider.TryGetWindTowardDegrees(out float wind) ? wind : null);
     }
