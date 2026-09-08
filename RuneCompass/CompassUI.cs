@@ -34,7 +34,7 @@ internal sealed class CompassUI : IDisposable
         _canvasGroup.interactable = false;
 
         GameObject panelObject = CreateUiObject("CompassPanel", _root.transform);
-        _panel = panelObject.AddComponent<RectTransform>();
+        _panel = panelObject.GetComponent<RectTransform>();
         _panel.anchorMin = new Vector2(0.5f, 1f);
         _panel.anchorMax = new Vector2(0.5f, 1f);
         _panel.pivot = new Vector2(0.5f, 0.5f);
@@ -94,16 +94,13 @@ internal sealed class CompassUI : IDisposable
 
     public void Dispose()
     {
-        if (_root != null)
-        {
-            UnityEngine.Object.Destroy(_root);
-        }
+        UnityEngine.Object.Destroy(_root);
     }
 
     private RectTransform CreateNeedle(string name, float width, float length, Color color)
     {
         GameObject pivotObject = CreateUiObject(name + "Pivot", _panel);
-        RectTransform pivot = pivotObject.AddComponent<RectTransform>();
+        RectTransform pivot = pivotObject.GetComponent<RectTransform>();
         pivot.anchorMin = new Vector2(0.5f, 0.5f);
         pivot.anchorMax = new Vector2(0.5f, 0.5f);
         pivot.pivot = new Vector2(0.5f, 0.5f);
@@ -111,7 +108,7 @@ internal sealed class CompassUI : IDisposable
         pivot.sizeDelta = Vector2.zero;
 
         GameObject needleObject = CreateUiObject(name, pivot);
-        RectTransform needle = needleObject.AddComponent<RectTransform>();
+        RectTransform needle = needleObject.GetComponent<RectTransform>();
         needle.anchorMin = new Vector2(0.5f, 0.5f);
         needle.anchorMax = new Vector2(0.5f, 0.5f);
         needle.pivot = new Vector2(0.5f, 0f);
@@ -135,7 +132,7 @@ internal sealed class CompassUI : IDisposable
     private Text CreateText(string name, Vector2 position, Font font, int size)
     {
         GameObject textObject = CreateUiObject(name, _panel);
-        RectTransform rect = textObject.AddComponent<RectTransform>();
+        RectTransform rect = textObject.GetComponent<RectTransform>();
         rect.anchorMin = new Vector2(0.5f, 0.5f);
         rect.anchorMax = new Vector2(0.5f, 0.5f);
         rect.pivot = new Vector2(0.5f, 0.5f);
@@ -153,7 +150,7 @@ internal sealed class CompassUI : IDisposable
 
     private static GameObject CreateUiObject(string name, Transform parent)
     {
-        GameObject child = new GameObject(name);
+        GameObject child = new GameObject(name, typeof(RectTransform));
         child.transform.SetParent(parent, false);
         return child;
     }
