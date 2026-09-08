@@ -1,0 +1,15 @@
+**/bin/
+**/obj/
+*.user
+*.suo
+.vs/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local game/mod loader paths
+.env
+local.props
+
+# Packaged release output
+artifacts/
