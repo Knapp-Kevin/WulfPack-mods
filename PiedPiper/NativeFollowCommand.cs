@@ -91,7 +91,8 @@ internal static class NativeFollowCommand
             }
             else if (parameter.ParameterType == typeof(bool))
             {
-                args[i] = false;
+                string name = parameter.Name ?? string.Empty;
+                args[i] = name.Equals("message", StringComparison.OrdinalIgnoreCase);
             }
             else
             {
