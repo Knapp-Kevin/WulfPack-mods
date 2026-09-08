@@ -1,62 +1,112 @@
+using System;
 using System.Reflection;
-using HarmonyLib;
+using BepInEx.Logging;
 
 namespace WulfPack.PiedPiper;
 
-internal static class TameablePatches
+internal static class NativeFollowCommand
 {
-    private static readonly MethodInfo? HaveSaddleMethod = AccessTools.Method(typeof(Tameable), "HaveSaddle");
+    private static readonly MethodInfo? CommandMethod = FindCommandMethod();
+    private static readonly MethodInfo? HaveSaddleMethod = FindNoArgBoolMethod("HaveSaddle");
 
-    [HarmonyPatch(typeof(Tameable), "Awake")]
-    private static class TameableAwakePatch
+    public static bool TryToggle(Tameable tameable, Player player, ManualLogSource log)
     {
-        private static void Postfix(Tameable __instance)
+        if (tameable == null || player == null || !tameable.IsTamed())
         {
-            if (__instance == null)
-            {
-                return;
-            }
+            return false;
+        }
 
-            // Valheim already owns the Command RPC and MonsterAI follow target.
-            // Pied Piper only exposes that existing path to every Tameable.
-            __instance.m_commandable = true;
+        if (HasSaddle(tameable))
+        {
+            player.Message(MessageHud.MessageType.Center, "Pied Piper: remove the saddle before commanding this tame.");
+            return false;
+        }
+
+        if (CommandMethod == null)
+        {
+            log.LogError("Pied Piper could not resolve Tameable.Command in the current Valheim build.");
+            return false;
+        }
+
+        try
+        {
+            object?[] args = BuildCommandArguments(CommandMethod, player);
+            CommandMethod.Invoke(tameable, args);
+            return true;
+        }
+        catch (TargetInvocationException ex)
+        {
+            log.LogError($"Pied Piper command failed: {ex.InnerException?.Message ?? ex.Message}");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            log.LogError($"Pied Piper command failed: {ex.Message}");
+            return false;
         }
     }
 
-    [HarmonyPatch(typeof(Tameable), nameof(Tameable.Interact), new[] { typeof(Humanoid), typeof(bool), typeof(bool) })]
-    private static class TameableInteractPatch
+    private static MethodInfo? FindCommandMethod()
     {
-        private static void Prefix(Tameable __instance, ref CommandGuardState __state)
+        foreach (MethodInfo method in typeof(Tameable).GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
         {
-            __state = default;
-            if (__instance == null || !__instance.IsTamed() || __instance.m_saddle == null)
+            if (!string.Equals(method.Name, "Command", StringComparison.Ordinal))
             {
-                return;
+                continue;
             }
 
-            if (!HasSaddle(__instance) || !__instance.m_commandable)
+            ParameterInfo[] parameters = method.GetParameters();
+            if (parameters.Length > 0 && typeof(Humanoid).IsAssignableFrom(parameters[0].ParameterType))
             {
-                return;
+                return method;
             }
-
-            // A saddled rideable remains pettable/renameable, but the normal Use
-            // interaction must not switch its movement authority into Follow.
-            __state.RestoreCommandable = true;
-            __instance.m_commandable = false;
         }
 
-        private static void Postfix(Tameable __instance, CommandGuardState __state)
+        return null;
+    }
+
+    private static MethodInfo? FindNoArgBoolMethod(string name)
+    {
+        MethodInfo? method = typeof(Tameable).GetMethod(
+            name,
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+            null,
+            Type.EmptyTypes,
+            null);
+        return method?.ReturnType == typeof(bool) ? method : null;
+    }
+
+    private static object?[] BuildCommandArguments(MethodInfo method, Player player)
+    {
+        ParameterInfo[] parameters = method.GetParameters();
+        object?[] args = new object?[parameters.Length];
+        args[0] = player;
+
+        for (int i = 1; i < parameters.Length; i++)
         {
-            if (__instance != null && __state.RestoreCommandable)
+            ParameterInfo parameter = parameters[i];
+            if (parameter.HasDefaultValue)
             {
-                __instance.m_commandable = true;
+                args[i] = parameter.DefaultValue;
+            }
+            else if (parameter.ParameterType == typeof(bool))
+            {
+                args[i] = false;
+            }
+            else
+            {
+                args[i] = parameter.ParameterType.IsValueType
+                    ? Activator.CreateInstance(parameter.ParameterType)
+                    : null;
             }
         }
+
+        return args;
     }
 
     private static bool HasSaddle(Tameable tameable)
     {
-        if (HaveSaddleMethod == null)
+        if (tameable.m_saddle == null || HaveSaddleMethod == null)
         {
             return false;
         }
@@ -65,14 +115,9 @@ internal static class TameablePatches
         {
             return HaveSaddleMethod.Invoke(tameable, null) is true;
         }
-        catch (TargetInvocationException)
+        catch
         {
             return false;
         }
-    }
-
-    private struct CommandGuardState
-    {
-        public bool RestoreCommandable;
     }
 }
