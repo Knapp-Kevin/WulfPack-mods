@@ -1,0 +1,9 @@
+{
+  "name": "RestedWhispers",
+  "version_number": "0.1.0",
+  "website_url": "https://github.com/Knapp-Kevin/WulfPack-mods",
+  "description": "A lightweight Valheim mod that gently warns you as your Rested effect begins to fade.",
+  "dependencies": [
+    "denikson-BepInExPack_Valheim-5.4.2333"
+  ]
+}
