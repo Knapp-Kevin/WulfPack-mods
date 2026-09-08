@@ -71,21 +71,22 @@ internal sealed class CompassUI : IDisposable
 
     /// <summary>
     /// Populates the fixed card and returns the marker that travels to the player's
-    /// bearing. A skin supplies ring artwork and its own marker; without one, primitive
-    /// glyphs and a wedge stand in.
+    /// bearing. A skin supplies the ring artwork; without one, primitive glyphs stand in.
+    /// The needle itself is drawn by the mod so heading always reads the same way.
     /// </summary>
     private RectTransform BuildCard(CompassSkin? skin, bool skinned, Font font)
     {
         if (!skinned)
         {
             CompassUiFactory.AddCardinals(_dial, font);
-            return CompassUiFactory.CreateHeadingMarker(_panel);
+        }
+        else
+        {
+            CompassUiFactory.CreateSkinLayer("SkinRing", _dial, skin!.Ring!);
         }
 
-        CompassUiFactory.CreateSkinLayer("SkinRing", _dial, skin!.Ring!);
-        return skin.LubberMarker != null
-            ? CompassUiFactory.CreateSkinLayer("HeadingMarker", _panel, skin.LubberMarker)
-            : CompassUiFactory.CreateHeadingMarker(_panel);
+        // The needle is drawn last so it sits above the card and the wind spear.
+        return CompassUiFactory.CreateHeadingNeedle(_panel);
     }
 
     private static CanvasGroup CreateCanvasGroup(GameObject root)

@@ -25,11 +25,10 @@ internal static class CompassUiFactory
     private const int CardinalFontSize = (int)(DialSize * 0.125f);
     private const float NeedleWidth = DialSize * 0.021f;
     private const float NeedleLength = DialSize * 0.25f;
-    private const float LubberRadius = DialSize * 0.467f;
-    private const float LubberWidth = DialSize * 0.058f;
-    private const float LubberHeight = DialSize * 0.092f;
+    private const float HeadingNeedleWidth = DialSize * 0.030f;
+    private const float HeadingNeedleLength = DialSize * 0.36f;
 
-    private static readonly Color LubberColor = new(0.95f, 0.75f, 0.28f, 1f);
+    private static readonly Color HeadingColor = new(0.93f, 0.42f, 0.18f, 1f);
     private static readonly Color WindColor = new(0.42f, 0.78f, 1f, 0.95f);
     private static readonly Color CardinalColor = new(0.96f, 0.91f, 0.80f, 1f);
     private static readonly Color OutlineColor = new(0f, 0f, 0f, 0.85f);
@@ -101,24 +100,31 @@ internal static class CompassUiFactory
     }
 
     /// <summary>
-    /// The unskinned heading marker: a wedge riding the rim at the bearing the player
-    /// faces. Returned as a centred pivot so rotating it carries the wedge around the rim.
+    /// The heading needle: a warm arrow from the centre pointing at the bearing the player
+    /// faces, read against the fixed card. Returned as a centred pivot, so rotating it
+    /// swings the needle about the dial centre.
     /// </summary>
-    public static RectTransform CreateHeadingMarker(Transform parent)
+    /// <remarks>
+    /// Deliberately warm and centre-mounted, against the cool bronze feather-spear used for
+    /// wind. Colour alone is a weak signal, so the two also differ in origin and silhouette.
+    /// </remarks>
+    public static RectTransform CreateHeadingNeedle(Transform parent)
     {
-        GameObject pivotObject = CreateUiObject("HeadingMarkerPivot", parent);
+        GameObject pivotObject = CreateUiObject("HeadingNeedlePivot", parent);
         RectTransform pivot = pivotObject.GetComponent<RectTransform>();
         Centre(pivot);
         pivot.sizeDelta = Vector2.zero;
 
-        GameObject markerObject = CreateUiObject("HeadingMarker", pivot);
-        RectTransform marker = markerObject.GetComponent<RectTransform>();
-        Centre(marker);
-        marker.anchoredPosition = new Vector2(0f, LubberRadius);
-        marker.sizeDelta = new Vector2(LubberWidth, LubberHeight);
+        GameObject needleObject = CreateUiObject("HeadingNeedle", pivot);
+        RectTransform needle = needleObject.GetComponent<RectTransform>();
+        needle.anchorMin = new Vector2(0.5f, 0.5f);
+        needle.anchorMax = new Vector2(0.5f, 0.5f);
+        needle.pivot = new Vector2(0.5f, 0f);
+        needle.anchoredPosition = Vector2.zero;
+        needle.sizeDelta = new Vector2(HeadingNeedleWidth, HeadingNeedleLength);
 
-        Image image = markerObject.AddComponent<Image>();
-        image.color = LubberColor;
+        Image image = needleObject.AddComponent<Image>();
+        image.color = HeadingColor;
         image.raycastTarget = false;
         return pivot;
     }
