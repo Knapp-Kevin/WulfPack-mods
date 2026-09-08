@@ -2,33 +2,63 @@
 
 ## Current status
 
-**Phase 0: repository mesh established.**
+**Phase 1 implementation candidate written. Local compile and in-game validation remain.**
 
-No gameplay implementation has been claimed yet.
+The first implementation is intentionally tiny. Public decompiled Valheim source shows that `Tameable` already owns the native `Command` RPC and follow-target machinery, and that normal interaction invokes it when `m_commandable` is enabled.
 
-## Confirmed product decisions
+Pied Piper now enables that existing command path for tameables rather than introducing custom pet AI.
 
-- Name: Pied Piper.
-- Purpose: one consistent Follow / Stay command for eligible tamed creatures.
-- Current target families: wolf, boar, hen/chicken, lox, asksvin.
-- Future tameable creatures may be added when Valheim exposes a compatible contract.
-- Rideable tameables must not be forced into Follow while mounted/saddle behavior owns movement.
-- Prefer native Valheim follow machinery over custom AI.
-- Wild/untamed creatures are ignored.
-- No teleporting, formations, pet inventory, breeding automation, stat changes, or general tame overhaul.
-- No save/world migration dependency.
+## Implemented candidate
+
+- BepInEx plugin entry point.
+- Harmony patch on `Tameable.Awake` enabling `m_commandable`.
+- Existing vanilla Follow / Stay behavior remains the command implementation.
+- Wild / untamed creatures remain gated by vanilla `Tameable.Interact` behavior.
+- Normal Valheim Use / interact input is the command input. No second keybind is introduced.
+- Generic saddle guard suppresses Follow / Stay switching while a tameable currently has an attached saddle.
+- Local build / install / disable / enable / status / uninstall helper.
+- No custom AI or pathfinding.
+- No save/world schema.
 - Zero GitHub Actions.
 
-## Next gate
+## Why the implementation is this small
 
-Inspect the current installed Valheim assemblies and identify the authoritative tame/follow command seam before writing gameplay code.
+The current public `Tameable` contract contains:
 
-Questions Phase 1 must answer:
+- `m_commandable`
+- a registered `Command` RPC
+- the native interaction path
+- `MonsterAI` follow behavior behind that command
+- saddle state owned by `Tameable`
 
-1. What exact method/state makes a vanilla wolf follow or stay today?
-2. Do boar and hen/chicken already expose compatible dormant follow machinery?
-3. What does lox/asksvin use for follow state, and how is active riding/saddle ownership represented?
-4. Can the entire mod be implemented through one narrow native adapter rather than creature-specific AI patches?
-5. Which input seam gives a clean configurable command without breaking normal interaction behavior?
+Older Valheim mods have independently used the same `m_commandable = true` seam to expose native follow commands, which provides useful corroboration. The installed game assemblies are still authoritative and may require API-drift corrections before this candidate is accepted.
 
-Issue #6 is the authoritative implementation and validation tracker.
+## Local validation gate
+
+Run:
+
+```powershell
+.\PiedPiper\build-local.ps1
+.\PiedPiper\build-local.ps1 -Install
+```
+
+Then verify:
+
+1. current installed assemblies compile with the Harmony and `Tameable` contracts used here;
+2. plugin loads with no BepInEx / Harmony errors;
+3. vanilla wolf Follow / Stay still works;
+4. tamed boar gains Follow / Stay;
+5. tamed hen/chicken gains Follow / Stay;
+6. unsaddled lox gains Follow / Stay;
+7. unsaddled asksvin gains Follow / Stay;
+8. saddled rideables do not switch into Follow through the normal Use interaction;
+9. wild / untamed creatures remain unaffected;
+10. petting and renaming remain usable;
+11. disable / enable works after restart;
+12. uninstall restores vanilla behavior and leaves other plugins untouched.
+
+## Current boundary
+
+Do not claim Pied Piper is playable or validated until the local compile and game pass succeeds. If current Valheim has changed `Tameable`, saddle state, Harmony method signatures, or the command path, correct the implementation against the installed assemblies rather than preserving this candidate for its own sake.
+
+Issue #6 remains the authoritative implementation and validation tracker.
