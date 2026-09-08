@@ -17,6 +17,7 @@ public sealed class Plugin : BaseUnityPlugin
     private ConfigEntry<float> _firstWarningSeconds = null!;
     private ConfigEntry<float> _finalWarningSeconds = null!;
     private ConfigEntry<bool> _notifyOnExpiration = null!;
+    private ConfigEntry<MessageHud.MessageType> _messagePosition = null!;
 
     private float _nextPollTime;
     private bool _wasRested;
@@ -48,6 +49,13 @@ public sealed class Plugin : BaseUnityPlugin
             "NotifyOnExpiration",
             true,
             "Show a message when the Rested effect expires.");
+
+        _messagePosition = Config.Bind(
+            "General",
+            "MessagePosition",
+            MessageHud.MessageType.Center,
+            "Where notifications appear. Center is Valheim's large banner text; "
+            + "TopLeft is the small corner text used for pickups.");
 
         Logger.LogInfo($"{PluginName} {PluginVersion} loaded.");
     }
@@ -129,11 +137,11 @@ public sealed class Plugin : BaseUnityPlugin
         }
     }
 
-    private static void Notify(string message)
+    private void Notify(string message)
     {
         if (MessageHud.instance != null)
         {
-            MessageHud.instance.ShowMessage(MessageHud.MessageType.TopLeft, message);
+            MessageHud.instance.ShowMessage(_messagePosition.Value, message);
         }
     }
 

@@ -17,13 +17,29 @@ observes the existing Rested effect and displays native Valheim notifications.
 
 BepInEx configuration (`BepInEx/config/com.wulfpack.restedwhispers.cfg`) exposes:
 
-- `Enabled`
-- `FirstWarningSeconds`
-- `FinalWarningSeconds`
-- `NotifyOnExpiration`
+| Key | Default | Meaning |
+|---|---|---|
+| `Enabled` | `true` | Master switch. `false` suppresses all notifications. |
+| `FirstWarningSeconds` | `120` | Seconds of Rested **remaining** when the first warning fires. |
+| `FinalWarningSeconds` | `30` | Seconds remaining when the final warning fires. |
+| `NotifyOnExpiration` | `true` | Whether to announce Rested ending. |
+| `MessagePosition` | `Center` | `Center` for Valheim's large banner text, or `TopLeft` for the small corner text used for item pickups. |
+
+Thresholds are measured in time **remaining**, not time elapsed, so the
+wall-clock moment they fire moves with your comfort level (total Rested duration
+is a base value plus a per-comfort-level bonus).
 
 The first-warning threshold is never allowed to occur later than the
-final-warning threshold. Negative warning values are treated as zero at runtime.
+final-warning threshold: if you set `FirstWarningSeconds` below
+`FinalWarningSeconds`, the first is pulled up to match. Negative warning values
+are treated as zero at runtime.
+
+Each message fires at most once per Rested cycle, and re-acquiring Rested arms
+all three again. If the mod first sees Rested when you are already below the
+final threshold, only the final warning fires — you do not get both at once.
+
+The config file is written on first launch, so it will not exist until you have
+run the game once with the mod installed. Edit it while the game is closed.
 
 ---
 
@@ -40,6 +56,11 @@ registry and `libraryfolders.vdf`; pass `-ValheimRoot` only if that fails.
 | **Re-enable** | `.\RestedWhispers\build-local.ps1 -Enable` |
 | **Uninstall** (remove entirely) | `.\RestedWhispers\build-local.ps1 -Uninstall` |
 | **Check current state** | `.\RestedWhispers\build-local.ps1 -Status` |
+
+**Quit Valheim before installing, disabling, enabling, or uninstalling.** BepInEx
+memory-maps loaded plugin DLLs, so those operations cannot succeed while the game
+is open; the script refuses them with a clear message rather than a raw error.
+`-Status` works at any time.
 
 Non-default Valheim location:
 

@@ -2,13 +2,9 @@
 .SYNOPSIS
     Build, install, disable, enable, uninstall, or inspect Rested Whispers.
 .DESCRIPTION
-    Local helper only; this repository uses no GitHub Actions. Manages Rested
-    Whispers and nothing else: it never moves or deletes another BepInEx plugin,
-    and never touches Thunderstore Mod Manager profiles.
-.EXAMPLE
-    .uild-local.ps1 -Install
-.EXAMPLE
-    .uild-local.ps1 -ValheimRoot "G:\Steam\steamapps\common\Valheim" -Status
+    Local helper; this repository uses no GitHub Actions. Manages Rested
+    Whispers and nothing else - it never touches another BepInEx plugin or any
+    Thunderstore Mod Manager profile. Reference: RestedWhispers/README.md.
 #>
 [CmdletBinding(DefaultParameterSetName = "Build")]
 param(
@@ -50,8 +46,8 @@ function Find-ValheimRoot {
             }
         }
     }
-    $candidates.Add("C:\Program Files (x86)\Steam\steamapps\common\Valheim")
-    $candidates.Add("C:\Program Files\Steam\steamapps\common\Valheim")
+    $candidates.AddRange([string[]]@("C:\Program Files (x86)\Steam\steamapps\common\Valheim",
+                                    "C:\Program Files\Steam\steamapps\common\Valheim"))
     foreach ($c in $candidates) {
         if ((Test-Path $c) -and (Test-Path (Join-Path $c "valheim_Data\Managed\assembly_valheim.dll"))) {
             return $c
@@ -209,6 +205,12 @@ function Show-Status {
 # ---------------------------------------------------------------- dispatch --
 
 $paths = Resolve-Paths -Root $ValheimRoot
+# BepInEx memory-maps loaded plugin DLLs, so copying, moving or deleting one
+# fails while the game is open. Fail with guidance, not a raw IOException.
+if ($PSCmdlet.ParameterSetName -in @("Install", "Uninstall", "Enable", "Disable") -and
+    (Get-Process -Name "valheim" -ErrorAction SilentlyContinue)) {
+    throw "Valheim is running. Quit the game, then re-run this command."
+}
 
 switch ($PSCmdlet.ParameterSetName) {
     "Status" { Show-Status -Paths $paths }
@@ -234,12 +236,11 @@ switch ($PSCmdlet.ParameterSetName) {
     "Install" {
         $dll = Invoke-Build -Paths $paths
         New-Item -ItemType Directory -Force -Path $paths.PluginDir | Out-Null
-        Copy-Item $dll (Join-Path $paths.PluginDir "RestedWhispers.dll") -Force
+        try { Copy-Item $dll (Join-Path $paths.PluginDir "RestedWhispers.dll") -Force }
+        catch [System.IO.IOException] { throw "The installed DLL is still locked. Fully quit Valheim, wait a few seconds, then re-run." }
         Write-Host "Installed: $($paths.PluginDir)\RestedWhispers.dll"
         # Never leave an enabled copy and a disabled copy side by side.
-        if (Remove-OwnedPath -Path $paths.DisabledDir -ExpectedLeaf $OwnedPluginLeaf) {
-            Write-Host "Cleared stale disabled copy: $($paths.DisabledDir)"
-        }
+        if (Remove-OwnedPath -Path $paths.DisabledDir -ExpectedLeaf $OwnedPluginLeaf) { Write-Host "Cleared stale disabled copy: $($paths.DisabledDir)" }
         Remove-EmptyDisabledParent -DisabledDir $paths.DisabledDir
         Show-Status -Paths $paths
     }
