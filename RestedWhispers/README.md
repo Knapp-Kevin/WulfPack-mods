@@ -19,11 +19,37 @@ BepInEx configuration exposes:
 - `FinalWarningSeconds`
 - `NotifyOnExpiration`
 
-The final-warning threshold is clamped so it cannot occur after the first-warning threshold.
+The first-warning threshold is never allowed to occur later than the final-warning threshold. Negative warning values are treated as zero at runtime.
 
-## Build prerequisites
+## Local build only
 
-Install Valheim and BepInExPack for Valheim, then set these environment variables before building:
+This repository does not use GitHub Actions. The GitHub Actions budget is zero. Build, packaging, and game validation are performed locally.
+
+### Windows helper
+
+With Valheim and BepInExPack installed in the default Steam location:
+
+```powershell
+.\RestedWhispers\build-local.ps1
+```
+
+To build and copy the DLL directly into `BepInEx/plugins/RestedWhispers/`:
+
+```powershell
+.\RestedWhispers\build-local.ps1 -Install
+```
+
+If Valheim is installed elsewhere:
+
+```powershell
+.\RestedWhispers\build-local.ps1 -ValheimRoot "D:\SteamLibrary\steamapps\common\Valheim" -Install
+```
+
+The helper validates that `assembly_valheim.dll` and `BepInEx.dll` exist before attempting the build.
+
+### Manual build
+
+Set:
 
 - `VALHEIM_MANAGED`: the game's `valheim_Data/Managed` directory
 - `BEPINEX_CORE`: the active BepInEx `core` directory
@@ -38,14 +64,17 @@ The project intentionally references the locally installed game assemblies rathe
 
 ## Initial acceptance test
 
-1. Install the built DLL under `BepInEx/plugins/RestedWhispers/`.
+1. Build and install the DLL locally.
 2. Launch Valheim with an otherwise vanilla test character/world.
-3. Acquire the Rested effect.
-4. Verify exactly one notification appears at each configured threshold.
-5. Verify one expiration message appears when Rested ends.
-6. Acquire Rested again and verify the warning cycle resets.
-7. Disable the mod in config and verify no notifications appear.
-8. Remove the DLL and verify the character/world remain usable without migration or repair.
+3. Confirm the BepInEx log reports `Rested Whispers 0.1.0 loaded.` without plugin errors.
+4. Acquire the Rested effect.
+5. Verify exactly one notification appears at each configured threshold.
+6. Verify one expiration message appears when Rested ends.
+7. Acquire Rested again and verify the warning cycle resets.
+8. Disable the mod while Rested, allow Rested to expire, re-enable the mod, and verify no stale expiration message appears.
+9. Disable the mod in config and verify no notifications appear.
+10. Remove the DLL and verify the character/world remain usable without migration or repair.
+11. Smoke-test joining a multiplayer or dedicated-server world as a client.
 
 ## Scope boundary
 
