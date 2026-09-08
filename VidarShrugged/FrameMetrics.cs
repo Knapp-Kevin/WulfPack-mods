@@ -6,6 +6,7 @@ internal sealed class FrameMetrics
 {
     private readonly float[] _samples;
     private int _count;
+    private int _writeIndex;
 
     public FrameMetrics(int capacity)
     {
@@ -24,16 +25,12 @@ internal sealed class FrameMetrics
             return;
         }
 
+        _samples[_writeIndex] = frameMilliseconds;
+        _writeIndex = (_writeIndex + 1) % _samples.Length;
         if (_count < _samples.Length)
         {
-            _samples[_count++] = frameMilliseconds;
-            return;
+            _count++;
         }
-
-        // Gate 0 reports on a cadence and resets after each report. If the configured
-        // report window somehow exceeds capacity, retain the newest observations.
-        Array.Copy(_samples, 1, _samples, 0, _samples.Length - 1);
-        _samples[_samples.Length - 1] = frameMilliseconds;
     }
 
     public FrameMetricsSnapshot SnapshotAndReset()
@@ -64,8 +61,14 @@ internal sealed class FrameMetrics
             Percentile(ordered, 0.999),
             ordered[ordered.Length - 1]);
 
-        _count = 0;
+        Reset();
         return snapshot;
+    }
+
+    public void Reset()
+    {
+        _count = 0;
+        _writeIndex = 0;
     }
 
     private static float Percentile(float[] ordered, double percentile)
