@@ -1,0 +1,29 @@
+**/bin/
+**/obj/
+*.user
+*.suo
+.vs/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local game/mod loader paths
+.env
+local.props
+
+# Packaged release output
+artifacts/
+# qor:seed -- do not edit between markers
+.qor/session/
+# qor:seed/end
+
+# AI governance surfaces (public repo -- process artifacts stay local)
+.agent/
+.qor/
+docs/
+.claude/
+CLAUDE.md
+AGENTS.md
+
+# Transient governance gate outputs
+dist/
