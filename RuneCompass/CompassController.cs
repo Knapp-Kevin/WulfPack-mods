@@ -18,6 +18,7 @@ internal sealed class CompassController : IDisposable
     private CompassUI? _ui;
     private CompassSkin? _skin;
     private bool _skinResolved;
+    private bool _externalSuppressed;
 
     public CompassController(ManualLogSource log, CompassSettings settings)
     {
@@ -44,6 +45,19 @@ internal sealed class CompassController : IDisposable
         AdvanceInterference();
         Render(heading);
         UpdateShipWindGauge();
+    }
+
+    /// <summary>
+    /// Allows another optional WulfPack instrument to suppress only Rune Compass presentation.
+    /// Gameplay state, configuration and skin selection are untouched.
+    /// </summary>
+    internal void SetExternalSuppressed(bool suppressed)
+    {
+        _externalSuppressed = suppressed;
+        if (suppressed)
+        {
+            Hide();
+        }
     }
 
     /// <summary>
@@ -109,7 +123,8 @@ internal sealed class CompassController : IDisposable
     /// </summary>
     private bool ShouldShow()
     {
-        return _settings.Enabled()
+        return !_externalSuppressed
+            && _settings.Enabled()
             && (!_settings.OnlyInNoMap() || Game.m_noMap)
             && Player.m_localPlayer != null;
     }
