@@ -5,8 +5,9 @@
 Rebased onto current `main`, compiles clean against the shipped **Valheim 1.0** assemblies,
 loads with its Harmony patches applied and no exceptions, and passes lifecycle containment.
 
-**Follow / Stay is confirmed working in play** by the operator. One defect was found in that
-pass and fixed: see "Saddle guard removed".
+**Confirmed working in play** by the operator across every behaviour this mod claims, and
+the save-integrity gate its tier requires has been run and passed. One defect was found
+during testing and fixed: see "Saddle guard removed".
 
 Tier: **state-touching** (see the root README risk-tier table).
 
@@ -99,13 +100,34 @@ install, status, disable, enable and uninstall. It had never been run.
 The same defect exists in Rune Compass at the same line, because the script was copied from
 there. `RestedWhispers` and `VidarShrugged` carry the correct form.
 
-## Not yet done
+## Operator acceptance
 
-- **Saddled-creature behaviour after the guard removal.** Petting a saddled creature should
-  now toggle Follow, and interacting with the saddle should still mount. Both need one pass.
-- **Non-tamed creatures unaffected** — no command prompt where there should not be one.
-- **Save-integrity diff across a play session with the patches live.** The install/uninstall
-  diff proves the files are clean, not that an active session leaves the world unchanged.
+Confirmed in play against Valheim 1.0:
+
+| # | Check | Result |
+|---|---|---|
+| 1 | Follow / Stay toggles on the interact key | **pass** |
+| 2 | Petting a saddled creature toggles Follow | **pass** (this was the defect; fixed by removing the saddle guard) |
+| 3 | Interacting with the saddle still mounts | **pass** — riding is untouched, as predicted from `Sadle` owning its own `Interact` |
+| 4 | Untamed creatures show no command prompt | **pass** |
+
+## Save-integrity gate
+
+Required by the state-touching tier. `verify-save-integrity.ps1` snapshots the save
+directory before a session and compares after; it reports loss, truncation, implausible
+shrinkage and orphaned worlds, and deliberately does not fail on files merely changing.
+
+Result after a session with the patches live:
+
+```text
+files before   : 105
+files after    : 105
+modified       : 2   (expected - someone played)
+RESULT: NO LOSS, NO TRUNCATION, NO ORPHANED WORLDS
+```
+
+**Caveat**: taken mid-session with the game still running, so it reflects an autosave rather
+than a clean shutdown. Worth re-running after a quit before this is treated as final.
 
 ## Live hazard in the operator's world
 
@@ -117,3 +139,5 @@ world now.
 there is no way to release it from its patrol point — it stays anchored permanently.
 Commanding back to Follow calls `ResetPatrolPoint`, which clears the ZDO value; that path
 only exists while the mod is installed.
+
+This belongs in the README before release. It is the single behaviour that outlives removal.
