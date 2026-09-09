@@ -4,28 +4,22 @@ Pied Piper is a deliberately small Valheim quality-of-life mod that gives eligib
 
 > One command. One behavior. Follow or stay.
 
-The mod exists to make tameable creatures easier to move without becoming a pet-management overhaul.
+**Current state: functionally complete and operator-validated on Valheim 1.0.** The mod compiles cleanly, loads cleanly, passes lifecycle containment, and its claimed interaction behavior has been confirmed in play. Remaining work is release polish rather than gameplay implementation, including a Thunderstore-ready `icon.png`.
 
-## Current implementation direction
+See [CONCEPT.md](CONCEPT.md) for the product/visual contract and [STATUS.md](STATUS.md) for validation evidence.
 
-Public decompiled Valheim source shows that `Tameable` already owns the native command RPC and follow-target machinery, and vanilla commandable tameables use the normal **Use / interact** action to trigger it.
+## How it works
 
-Pied Piper therefore follows the same model as wolves instead of introducing a second keybind:
+Pied Piper uses Valheim's own tameable command path rather than introducing custom AI or pathfinding.
 
-1. enable Valheim's existing commandable path on tameables;
-2. let vanilla `Tameable.Interact` keep tame-state gating and native messaging;
-3. use the player's normal Valheim Use key, **E by default**, to toggle Follow / Stay;
-4. leave the actual command RPC, follow target, and pathfinding to Valheim;
-5. temporarily suppress commandability for rideables while a saddle is attached;
-6. fail closed for rideables if saddle state cannot be verified.
+1. A `Tameable.Awake` postfix enables Valheim's existing commandable path on tameables.
+2. The player uses Valheim's normal **Use / interact** action, `E` by default.
+3. `Tameable.Interact` keeps Valheim's native tame-state checks, pet effect, messaging, command RPC, follow target, and patrol behavior.
+4. Wild creatures remain unaffected.
 
-The pet effect still runs through Valheim's normal interaction path before the command, matching commandable tame behavior rather than replacing interaction with a custom controller.
-
-The **installed Valheim assemblies remain authoritative**. The current source is an implementation candidate until it compiles and runs against the installed game.
+There is no separate command key, command wheel, selection mode, or pet-management framework.
 
 ## Input behavior
-
-Pied Piper does not add a new gameplay key.
 
 ```text
 Look at tamed creature
@@ -36,11 +30,20 @@ Press Valheim Use / interact
 Valheim native Follow / Stay command
 ```
 
-If the player remaps Valheim's normal Use action, Pied Piper follows that native interaction path rather than hard-coding a separate keyboard key.
+If the player remaps Valheim's normal Use action, Pied Piper follows that native interaction path.
 
-## Scope
+## Confirmed rideable behavior
 
-Initial supported creature families:
+Riding is untouched because the saddle owns its own interaction path.
+
+- interact with the **creature's body**: Follow / Stay toggles;
+- interact with the **saddle**: mounting still works normally.
+
+An earlier implementation tried to block commanding whenever a saddle was attached. Operator testing proved that was the wrong model: `Sadle` handles mounting independently, so the guard only broke body interaction. It was removed.
+
+## Supported scope
+
+The current product applies the native command path consistently to tameables, including the target families that motivated the mod:
 
 - wolf
 - boar
@@ -48,46 +51,44 @@ Initial supported creature families:
 - lox
 - asksvin
 
-Future tameable creatures can be supported when they use a compatible `Tameable` / native follow contract. A future rideable tameable should inherit the same saddle rule rather than requiring a special-case creature class.
-
-## Rideable tameables
-
-Riding is untouched. A saddle is its own interactable: `Sadle` implements `Interact` and
-handles mounting, while `Tameable.Interact` — the body interaction this mod affects —
-contains no mount path at all.
-
-So on a saddled creature, interacting with the **body** toggles Follow / Stay, and
-interacting with the **saddle** mounts, exactly as in vanilla. Both confirmed in play.
-
-An earlier revision suppressed commanding whenever a saddle was present, meaning to protect
-riding. It could not — riding never went through the patched method — and it did break
-petting, so it was removed.
+Future tameables should inherit the same behavior when they use Valheim's compatible `Tameable` contract rather than requiring a creature-by-creature custom system.
 
 ## Before you uninstall
 
-**Command every creature back to Follow first.**
+**Command every Pied Piper-commanded creature back to Follow first.**
 
-Telling a creature to *stay* writes a patrol point into world state, through Valheim's own
-`RPC_Command`. That value outlives this mod. Once Pied Piper is removed, `m_commandable`
-reverts to the creature's prefab default, so a creature that vanilla never made commandable
-can no longer be commanded at all — and it cannot be released from its patrol point, because
-releasing it means commanding it back to Follow, which is the very thing the mod was
-providing.
+Telling a creature to **Stay** uses Valheim's own command RPC and writes a patrol point into world state. That patrol point can outlive the mod. Once Pied Piper is removed, a creature whose prefab is not normally commandable loses the interaction needed to clear that Stay state.
 
-The creature stays anchored where you left it, permanently.
+Safe removal order:
 
-Commanding back to Follow calls `ResetPatrolPoint` and clears the stored value. That path
-exists only while the mod is installed, so the safe order is:
+1. Command every Pied Piper-commanded creature back to **Follow**.
+2. Quit Valheim.
+3. Run:
 
-1. Command every Pied Piper–commanded creature back to **Follow**.
-2. Then `.\PiedPiper\build-local.ps1 -Uninstall`.
+```powershell
+.\PiedPiper\build-local.ps1 -Uninstall
+```
 
-Nothing else this mod does survives removal. `m_commandable` is re-applied from the prefab
-on every wake and is never written to a save.
+Returning the creature to Follow calls Valheim's `ResetPatrolPoint`, clearing the stored patrol point before removal.
 
-## Explicit non-goals for v0.1
+## Validation summary
 
-Pied Piper is not intended to provide:
+Confirmed against Valheim 1.0:
+
+- Release build: 0 warnings, 0 errors.
+- BepInEx load: clean, no Pied Piper exceptions.
+- Follow / Stay on the normal interact key: pass.
+- Saddled creature body interaction still commands: pass.
+- Saddle interaction still mounts: pass.
+- Wild creatures remain unaffected: pass.
+- Lifecycle containment: pass.
+- Save-integrity comparison after a live session: no loss, truncation, or orphaned worlds.
+
+Detailed evidence and the persistence analysis are in [STATUS.md](STATUS.md).
+
+## Explicit non-goals
+
+Pied Piper does not provide:
 
 - global army commands
 - radius-based mass selection
@@ -102,23 +103,11 @@ Pied Piper is not intended to provide:
 - custom pathfinding
 - a general tame overhaul
 
-If a feature cannot be explained as part of Follow / Stay, it probably belongs somewhere else.
-
-## Repository layout
-
-```text
-PiedPiper/
-├── Plugin.cs
-├── TameablePatches.cs
-├── PiedPiper.csproj
-├── build-local.ps1
-├── README.md
-├── IMPLEMENTATION_PLAN.md
-├── STATUS.md
-└── manifest.json
-```
+If a feature cannot be explained as part of Follow / Stay, it belongs somewhere else.
 
 ## Local lifecycle
+
+From the repository root:
 
 ```powershell
 .\PiedPiper\build-local.ps1
@@ -129,25 +118,25 @@ PiedPiper/
 .\PiedPiper\build-local.ps1 -Uninstall
 ```
 
-The helper manages only Pied Piper-owned files and never touches unrelated plugins.
+The helper manages only Pied Piper-owned files and does not touch unrelated plugins.
 
-## Validation target
+## Repository layout
 
-The initial implementation is successful when:
+```text
+PiedPiper/
+├── Plugin.cs
+├── TameablePatches.cs
+├── PiedPiper.csproj
+├── build-local.ps1
+├── manifest.json
+├── README.md
+├── CONCEPT.md
+├── IMPLEMENTATION_PLAN.md
+└── STATUS.md
+```
 
-- the current installed Valheim assemblies compile cleanly against the Harmony patches;
-- vanilla Use / interact toggles Follow / Stay on supported tamed creatures;
-- wolf behavior remains correct;
-- tamed boar and hen/chicken gain native Follow / Stay;
-- unsaddled lox and asksvin can Follow / Stay;
-- saddled lox and asksvin remain under saddle authority;
-- wild creatures remain unaffected;
-- rename behavior remains available through Valheim's normal alternate interaction;
-- disabling or uninstalling Pied Piper restores vanilla behavior after restart;
-- no save/world migration dependency is introduced.
+## Release readiness
 
-Development and validation are tracked in [issue #6](https://github.com/Knapp-Kevin/WulfPack-mods/issues/6).
-
-## Repository policy
+Gameplay behavior is complete for the current scope. Before a Thunderstore release, finish release packaging and add a proper `icon.png`; do not reopen gameplay discovery merely because the old README said "API discovery next."
 
 GitHub Actions are prohibited in WulfPack Mods. Pied Piper is built and validated locally with zero Actions runs.
