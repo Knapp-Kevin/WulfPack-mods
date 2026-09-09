@@ -257,10 +257,11 @@ player-facing description.
 
 Session `2026-09-09T1559-7ca34d`, branch `feat/rune-compass-storm-hierarchy`.
 
-**Operator acceptance, 2026-09-09: the behaviour is accepted.** Every storm and
-directional row has been observed in game and passes. The only outstanding work is the
-nine skin art assets (`Assets/Skins/ART_SPEC.md`, tracked in `SKINS_INDEX.md`) and row
-S12, which needs a ship.
+**Operator acceptance, 2026-09-09: the behaviour is accepted, and all 13 protocol rows
+pass.** The only outstanding work is the nine skin art assets
+(`Assets/Skins/ART_SPEC.md`, tracked in `SKINS_INDEX.md`), authored upstream. Every slot is
+wired and each missing file falls back to primitive geometry with identical motion, so no
+skin is broken by their absence.
 
 **Merge is blocked until every row below is recorded.** This cannot be automated: an
 unattended launch stops at the main menu, and `CompassController` builds no HUD until
@@ -292,7 +293,7 @@ The compass is installed and the build is green. Two things make this quick:
 | S9 | Disable Rune Compass mid-interference | HUD disappears cleanly, no exception. Re-enable: the compass returns settled, not mid-wander. | **PASS** |
 | S10 | `IndependentLayerInterference` both ways | Both ship. `true`: each layer is captured toward its own storm bearing, so the pointers disagree with each other. `false`: all are dragged toward one bearing, so they lie in agreement. **PASS — settled as a player preference rather than a hard-coded winner; neither is more correct.** |
 | S11 | Storm near the world edge | Interference is governed strictly by environment name, unaffected by the very high wind Valheim forces near the edge. | **PASS** - vindicates rejecting `GetWindIntensity()` as the storm gate during research, which would have read the world edge as a permanent storm. |
-| S12 | Ship wind gauge | Board a ship: Valheim's own wind gauge is hidden, leaving one wind readout. Then check all three restore paths - step off the ship, set `Enabled = false`, and leave No Map. The gauge must come back each time. | |
+| S12 | Ship wind gauge | Board a ship: Valheim's own wind gauge is hidden, leaving one wind readout. All three restore paths - step off, `Enabled = false`, leave No Map. | **PASS** - the mod's only touch of vanilla state, handed back on every exit path. |
 | S13 | Mistlands behaves as a storm | The compass is disturbed throughout the biome, whatever the weather, via the `StormBiomes` mask rather than by naming its three environments. | **PASS** - operator accepted. Note the biome is permanent, so interference there is constant rather than passing. |
 
 ## OQ-1, closed
