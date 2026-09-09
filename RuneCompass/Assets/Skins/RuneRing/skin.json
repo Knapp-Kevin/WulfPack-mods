@@ -1,0 +1,15 @@
+{
+  "name": "Rune Ring",
+  "description": "A darker forged-metal ring with restrained amber runic engraving.",
+  "baseTexture": "base.png",
+  "ringTexture": "ring.png",
+  "windPointerTexture": "wind_pointer.png",
+  "lubberMarkerTexture": "lubber_marker.png",
+  "defaultScale": 0.76,
+  "notes": "All layers use a centered 512 x 512 RGBA canvas. Decorative runes carry no gameplay meaning. The wind and lubber silhouettes intentionally match Classic Wood for cross-skin readability.",
+  "orientationConventions": {
+    "ring": "North is at 12 o'clock in the source texture. Apply heading only to the rose transform.",
+    "windPointer": "The spear tip points to 12 o'clock at world bearing 0. The circular boss is centered at (0.5, 0.5); mount it on the rose and apply pure world bearing.",
+    "lubberMarker": "Static screen-space layer. The downward point is baked at 12 o'clock and marks the player's facing."
+  }
+}

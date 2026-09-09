@@ -4,59 +4,97 @@ using UnityEngine.UI;
 
 namespace WulfPack.RuneCompass;
 
+/// <summary>
+/// The north-up compass HUD.
+/// </summary>
+/// <remarks>
+/// North is fixed at 12 o'clock. The card never moves; the indicators do. A rim marker
+/// travels to the bearing the player is facing, and the wind pointer travels to the
+/// bearing the wind is blowing toward.
+///
+/// That makes every rotation absolute: each indicator is handed a world bearing and
+/// rendered at <see cref="Bearing.BearingRotationZ"/>, with nothing needing to know where
+/// the player is looking. Heading and wind are told apart by place and shape rather than
+/// colour alone — the heading marker rides the rim, the wind pointer sits at the centre.
+///
+/// Which layers move is not a skin's choice. A skin supplies artwork and a resting scale.
+/// </remarks>
 internal sealed class CompassUI : IDisposable
 {
     private readonly GameObject _root;
     private readonly RectTransform _panel;
-    private readonly RectTransform _headingNeedle;
-    private readonly RectTransform _windNeedle;
+    private readonly RectTransform _dial;
+    private readonly RectTransform _headingMarker;
+    private readonly RectTransform _windPointer;
     private readonly Text _headingText;
     private readonly Text _windText;
     private readonly CanvasGroup _canvasGroup;
+    private readonly float _skinScale;
 
-    public CompassUI()
+    private int? _shownHeading;
+    private int? _shownWind;
+    private bool _readoutsVisible = true;
+
+    public CompassUI(CompassSkin? skin)
     {
-        _root = new GameObject("RuneCompassHud");
-        UnityEngine.Object.DontDestroyOnLoad(_root);
+        bool skinned = skin is { IsUsable: true };
+        _skinScale = skinned ? skin!.DefaultScale : 1f;
 
-        Canvas canvas = _root.AddComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 200;
+        _root = CompassUiFactory.BuildRoot();
+        _canvasGroup = CreateCanvasGroup(_root);
+        _panel = CompassUiFactory.BuildPanel(_root.transform);
 
-        CanvasScaler scaler = _root.AddComponent<CanvasScaler>();
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1920f, 1080f);
-        scaler.matchWidthOrHeight = 0.5f;
+        // Base first so it renders beneath the card: a Canvas draws in depth-first
+        // pre-order, and an object's whole subtree is emitted before its next sibling.
+        if (skinned && skin!.Base != null)
+        {
+            CompassUiFactory.CreateSkinLayer("SkinBase", _panel, skin.Base);
+        }
 
-        _root.AddComponent<GraphicRaycaster>().enabled = false;
-        _canvasGroup = _root.AddComponent<CanvasGroup>();
-        _canvasGroup.blocksRaycasts = false;
-        _canvasGroup.interactable = false;
+        _dial = CompassUiFactory.BuildDial(_panel);
+        Font font = CompassUiFactory.CreateFont();
 
-        GameObject panelObject = CreateUiObject("CompassPanel", _root.transform);
-        _panel = panelObject.GetComponent<RectTransform>();
-        _panel.anchorMin = new Vector2(0.5f, 1f);
-        _panel.anchorMax = new Vector2(0.5f, 1f);
-        _panel.pivot = new Vector2(0.5f, 0.5f);
-        _panel.sizeDelta = new Vector2(190f, 190f);
+        _windPointer = skinned
+            ? CompassUiFactory.CreateSkinLayer("WindPointer", _panel, skin!.WindPointer!)
+            : CompassUiFactory.CreateWindNeedle(_panel);
+        _headingMarker = BuildCard(skin, skinned, font);
 
-        Image background = panelObject.AddComponent<Image>();
-        background.color = new Color(0.055f, 0.045f, 0.035f, 0.78f);
-        background.raycastTarget = false;
-
-        Font font = Font.CreateDynamicFontFromOSFont("Arial", 24);
-        AddCardinal("N", new Vector2(0f, 72f), font);
-        AddCardinal("E", new Vector2(72f, 0f), font);
-        AddCardinal("S", new Vector2(0f, -72f), font);
-        AddCardinal("W", new Vector2(-72f, 0f), font);
-
-        _headingNeedle = CreateNeedle("HeadingNeedle", 5f, 58f, new Color(0.95f, 0.75f, 0.28f, 1f));
-        _windNeedle = CreateNeedle("WindNeedle", 3f, 44f, new Color(0.42f, 0.78f, 1f, 0.95f));
-
-        _headingText = CreateText("HeadingText", new Vector2(0f, -104f), font, 18);
-        _windText = CreateText("WindText", new Vector2(0f, -127f), font, 15);
+        // Readouts sit just below the dial, so they follow its size.
+        const float below = CompassUiFactory.DialSize * 0.5f;
+        _headingText = CompassUiFactory.CreateReadout(
+            "HeadingText", _panel, new Vector2(0f, -(below + 14f)), font, 14);
+        _windText = CompassUiFactory.CreateReadout(
+            "WindText", _panel, new Vector2(0f, -(below + 32f)), font, 12);
 
         SetVisible(false);
+    }
+
+    /// <summary>
+    /// Populates the fixed card and returns the marker that travels to the player's
+    /// bearing. A skin supplies the ring artwork; without one, primitive glyphs stand in.
+    /// The needle itself is drawn by the mod so heading always reads the same way.
+    /// </summary>
+    private RectTransform BuildCard(CompassSkin? skin, bool skinned, Font font)
+    {
+        if (!skinned)
+        {
+            CompassUiFactory.AddCardinals(_dial, font);
+        }
+        else
+        {
+            CompassUiFactory.CreateSkinLayer("SkinRing", _dial, skin!.Ring!);
+        }
+
+        // The needle is drawn last so it sits above the card and the wind spear.
+        return CompassUiFactory.CreateHeadingNeedle(_panel);
+    }
+
+    private static CanvasGroup CreateCanvasGroup(GameObject root)
+    {
+        CanvasGroup group = root.AddComponent<CanvasGroup>();
+        group.blocksRaycasts = false;
+        group.interactable = false;
+        return group;
     }
 
     public void SetVisible(bool visible)
@@ -64,101 +102,75 @@ internal sealed class CompassUI : IDisposable
         _root.SetActive(visible);
     }
 
-    public void ApplyLayout(float scale, float opacity, Vector2 offset)
+    public void ApplyLayout(float scale, float opacity, Vector2 offset, HudAnchor anchor)
     {
-        _panel.localScale = Vector3.one * scale;
-        _panel.anchoredPosition = offset;
+        // The skin's defaultScale is the size its art was drawn for; the player's Scale
+        // multiplies it rather than replacing it.
+        _panel.localScale = Vector3.one * (scale * _skinScale);
+        HudAnchorLayout.Apply(_panel, anchor, offset);
         _canvasGroup.alpha = opacity;
+    }
+
+    /// <summary>
+    /// Numeric bearing readouts are diagnostic, not the normal presentation — Rune Compass
+    /// gives direction, not instrumentation.
+    /// </summary>
+    public void SetReadoutsVisible(bool visible)
+    {
+        if (_readoutsVisible == visible)
+        {
+            return;
+        }
+
+        _readoutsVisible = visible;
+        _headingText.gameObject.SetActive(visible);
+        _windText.gameObject.SetActive(visible);
     }
 
     public void SetHeading(float degrees)
     {
-        _headingNeedle.localEulerAngles = new Vector3(0f, 0f, -degrees);
-        _headingText.text = $"{degrees:000}° {Cardinal(degrees)}";
+        _headingMarker.localEulerAngles = new Vector3(0f, 0f, Bearing.BearingRotationZ(degrees));
+
+        int shown = Mathf.RoundToInt(degrees);
+        if (_shownHeading == shown)
+        {
+            return;
+        }
+
+        _shownHeading = shown;
+        _headingText.text = $"{shown:000}° {Bearing.Cardinal(shown)}";
     }
 
     public void SetWind(float? degrees)
     {
-        if (degrees.HasValue)
+        if (!degrees.HasValue)
         {
-            _windNeedle.gameObject.SetActive(true);
-            _windNeedle.localEulerAngles = new Vector3(0f, 0f, -degrees.Value);
-            _windText.text = $"Wind → {degrees.Value:000}° {Cardinal(degrees.Value)}";
+            _windPointer.gameObject.SetActive(false);
+            if (_shownWind.HasValue)
+            {
+                _shownWind = null;
+                _windText.text = "Wind unavailable";
+            }
+
+            return;
         }
-        else
+
+        _windPointer.gameObject.SetActive(true);
+        _windPointer.localEulerAngles =
+            new Vector3(0f, 0f, Bearing.BearingRotationZ(degrees.Value));
+
+        int shown = Mathf.RoundToInt(degrees.Value);
+        if (_shownWind == shown)
         {
-            _windNeedle.gameObject.SetActive(false);
-            _windText.text = "Wind unavailable";
+            return;
         }
+
+        _shownWind = shown;
+        _windText.text = $"Wind → {shown:000}° {Bearing.Cardinal(shown)}";
     }
 
     public void Dispose()
     {
         UnityEngine.Object.Destroy(_root);
-    }
-
-    private RectTransform CreateNeedle(string name, float width, float length, Color color)
-    {
-        GameObject pivotObject = CreateUiObject(name + "Pivot", _panel);
-        RectTransform pivot = pivotObject.GetComponent<RectTransform>();
-        pivot.anchorMin = new Vector2(0.5f, 0.5f);
-        pivot.anchorMax = new Vector2(0.5f, 0.5f);
-        pivot.pivot = new Vector2(0.5f, 0.5f);
-        pivot.anchoredPosition = Vector2.zero;
-        pivot.sizeDelta = Vector2.zero;
-
-        GameObject needleObject = CreateUiObject(name, pivot);
-        RectTransform needle = needleObject.GetComponent<RectTransform>();
-        needle.anchorMin = new Vector2(0.5f, 0.5f);
-        needle.anchorMax = new Vector2(0.5f, 0.5f);
-        needle.pivot = new Vector2(0.5f, 0f);
-        needle.anchoredPosition = Vector2.zero;
-        needle.sizeDelta = new Vector2(width, length);
-
-        Image image = needleObject.AddComponent<Image>();
-        image.color = color;
-        image.raycastTarget = false;
-        return pivot;
-    }
-
-    private void AddCardinal(string value, Vector2 position, Font font)
-    {
-        Text text = CreateText("Cardinal" + value, position, font, 22);
-        text.text = value;
-        text.fontStyle = FontStyle.Bold;
-        text.color = new Color(0.94f, 0.86f, 0.70f, 1f);
-    }
-
-    private Text CreateText(string name, Vector2 position, Font font, int size)
-    {
-        GameObject textObject = CreateUiObject(name, _panel);
-        RectTransform rect = textObject.GetComponent<RectTransform>();
-        rect.anchorMin = new Vector2(0.5f, 0.5f);
-        rect.anchorMax = new Vector2(0.5f, 0.5f);
-        rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.anchoredPosition = position;
-        rect.sizeDelta = new Vector2(220f, 28f);
-
-        Text text = textObject.AddComponent<Text>();
-        text.font = font;
-        text.fontSize = size;
-        text.alignment = TextAnchor.MiddleCenter;
-        text.color = Color.white;
-        text.raycastTarget = false;
-        return text;
-    }
-
-    private static GameObject CreateUiObject(string name, Transform parent)
-    {
-        GameObject child = new GameObject(name, typeof(RectTransform));
-        child.transform.SetParent(parent, false);
-        return child;
-    }
-
-    private static string Cardinal(float degrees)
-    {
-        string[] names = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" };
-        int index = Mathf.RoundToInt(degrees / 45f) % 8;
-        return names[index];
     }
 }

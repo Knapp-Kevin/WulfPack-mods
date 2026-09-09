@@ -7,65 +7,29 @@ namespace WulfPack.RuneCompass;
 internal sealed class CompassController : IDisposable
 {
     private readonly ManualLogSource _log;
-    private readonly Func<bool> _enabled;
-    private readonly Func<bool> _onlyInNoMap;
-    private readonly Func<float> _scale;
-    private readonly Func<float> _opacity;
-    private readonly Func<Vector2> _offset;
-    private readonly Func<float> _headingOffset;
+    private readonly CompassSettings _settings;
     private readonly HeadingProvider _headingProvider = new();
-    private readonly WindProvider _windProvider;
+    private readonly WindProvider _windProvider = new();
 
     private CompassUI? _ui;
-    private float _nextUpdateTime;
+    private CompassSkin? _skin;
+    private bool _skinResolved;
 
-    public CompassController(
-        ManualLogSource log,
-        Func<bool> enabled,
-        Func<bool> onlyInNoMap,
-        Func<float> scale,
-        Func<float> opacity,
-        Func<Vector2> offset,
-        Func<float> headingOffset)
+    public CompassController(ManualLogSource log, CompassSettings settings)
     {
         _log = log;
-        _enabled = enabled;
-        _onlyInNoMap = onlyInNoMap;
-        _scale = scale;
-        _opacity = opacity;
-        _offset = offset;
-        _headingOffset = headingOffset;
-        _windProvider = new WindProvider(log);
+        _settings = settings;
     }
 
     public void Tick()
     {
-        if (!_enabled())
+        if (!ShouldShow())
         {
             Hide();
             return;
         }
 
-        if (_onlyInNoMap() && !Game.m_noMap)
-        {
-            Hide();
-            return;
-        }
-
-        if (Player.m_localPlayer == null)
-        {
-            Hide();
-            return;
-        }
-
-        if (Time.unscaledTime < _nextUpdateTime)
-        {
-            return;
-        }
-
-        _nextUpdateTime = Time.unscaledTime + 0.05f;
-
-        if (!_headingProvider.TryGetHeadingDegrees(_headingOffset(), out float heading))
+        if (!_headingProvider.TryGetHeadingDegrees(_settings.HeadingOffset(), out float heading))
         {
             Hide();
             return;
@@ -73,17 +37,25 @@ internal sealed class CompassController : IDisposable
 
         EnsureUi();
         _ui!.SetVisible(true);
-        _ui.ApplyLayout(_scale(), _opacity(), _offset());
+        _ui.ApplyLayout(
+            _settings.Scale(), _settings.Opacity(), _settings.Offset(), _settings.Anchor());
+        _ui.SetReadoutsVisible(_settings.ShowReadouts());
         _ui.SetHeading(heading);
+        _ui.SetWind(
+            _windProvider.TryGetWindTowardDegrees(out float wind)
+                ? Bearing.Normalize(_settings.WindPointsToward() ? wind : wind + 180f)
+                : null);
+    }
 
-        if (_windProvider.TryGetWindTowardDegrees(out float wind))
-        {
-            _ui.SetWind(wind);
-        }
-        else
-        {
-            _ui.SetWind(null);
-        }
+    /// <summary>
+    /// Whether the compass should be on screen at all, independent of whether a heading
+    /// can currently be resolved.
+    /// </summary>
+    private bool ShouldShow()
+    {
+        return _settings.Enabled()
+            && (!_settings.OnlyInNoMap() || Game.m_noMap)
+            && Player.m_localPlayer != null;
     }
 
     public void Dispose()
@@ -99,8 +71,21 @@ internal sealed class CompassController : IDisposable
             return;
         }
 
-        _ui = new CompassUI();
-        _log.LogInfo("Rune Compass primitive HUD created.");
+        if (!_skinResolved)
+        {
+            _skinResolved = true;
+            _skin = SkinLoader.Load(_settings.SkinsRoot(), _settings.SelectedSkin(), _log);
+            if (_skin == null)
+            {
+                _log.LogInfo("Rune Compass falling back to the primitive HUD.");
+            }
+        }
+
+        _ui = new CompassUI(_skin);
+        _log.LogInfo(
+            _skin == null
+                ? "Rune Compass heading-up HUD created (primitive)."
+                : $"Rune Compass heading-up HUD created (skin: {_skin.Name}).");
     }
 
     private void Hide()

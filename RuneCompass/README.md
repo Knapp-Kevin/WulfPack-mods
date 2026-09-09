@@ -6,24 +6,72 @@ Its job is intentionally narrow: show orientation and wind direction without bec
 
 > Rune Compass gives you direction, not information.
 
+## Orientation model
+
+**North-up.** `N` is fixed at 12 o'clock and the card never moves. The indicators travel
+instead:
+
+- a **heading marker** rides the rim to the bearing you are facing;
+- a **wind pointer** sits at the centre and points where the wind is blowing.
+
+That is how a compass is normally read: north is a fixed reference and you read your
+direction against it.
+
+Because the card is pinned to world north, every rotation is **absolute**. Each indicator
+is handed a world bearing and rendered at `z = -bearing` through a single mapping — nothing
+needs to know where the player is looking. Adding an indicator means handing it a bearing.
+
+Heading and wind are told apart by place and shape, not colour alone: the heading marker
+rides the rim, the wind pointer sits at the centre with a feather-spear silhouette.
+
+> An earlier revision used a heading-up card that rotated under a fixed marker. It was
+> replaced after seeing it on real artwork: the cardinal glyphs are baked into the ring, so
+> a rotating card put `E` and `W` upside down on southerly headings, and a fixed north
+> reads more like a compass. North-up is also simpler — one mapping instead of two, and no
+> counter-rotation.
+
+## Configuration
+
+Written to `BepInEx/config/com.wulfpack.runecompass.cfg` on first run. BepInEx does not
+watch the file, so changes take effect on the next launch.
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `Enabled` | `true` | Master switch. |
+| `OnlyInNoMap` | `true` | Show only in No Map worlds. Set `false` to keep it in normal worlds too. |
+| `Anchor` | `TopRight` | Screen corner to pin to: `TopRight`, `TopCenter`, `TopLeft`, `BottomRight`, `BottomLeft`. `TopRight` is where the minimap would be. |
+| `ShowReadouts` | `false` | Numeric heading/wind text under the dial. Off by default — direction, not instrumentation. Turn on for calibration. |
+| `Scale` | `1` | HUD scale multiplier, floored at `0.25`. |
+| `Opacity` | `0.9` | HUD opacity, clamped to 0–1. |
+| `OffsetX` | `0` | Nudge from the anchored resting position. Positive is right. |
+| `OffsetY` | `0` | Nudge from the anchored resting position. Positive is up. |
+| `HeadingOffsetDegrees` | `0` | Clockwise calibration offset. Leave at `0` — the bearing convention already matches the game's own. |
+
+Anchoring to a corner rather than to absolute pixels keeps the compass in place across
+resolutions and aspect ratios.
+
 ## Current implementation
 
-The first playable technical proof is implemented and merged into the repository. Local compile and in-game validation against the installed Valheim build remain tracked in issue #4.
+Compiled against the installed Valheim build, installed, loaded, and observed rendering
+correctly in a live No Map world. The remaining acceptance steps need a human at the
+keyboard and are listed in [STATUS.md](STATUS.md); issue #4 stays open until then.
 
 Implemented now:
 
-- camera-based heading calculation
-- cardinal direction display
-- No Map-aware visibility through Valheim's current `Game.m_noMap` state
-- live wind direction provider using `EnvMan`
-- separate heading and wind indicators
+- north-up orientation: fixed card, rim heading marker, centre wind pointer
+- camera-based heading, using Valheim's own `Atan2(x, z)` bearing convention
+- No Map-aware visibility through `Game.m_noMap`
+- live wind direction from `EnvMan.GetWindDir()`, bound at compile time
 - wind semantics defined as direction **toward**
-- configurable enable state, scale, opacity, X/Y position, and heading calibration
+- pinned to a screen corner, defaulting to top-right where the minimap would be
+- configurable anchor, scale, opacity, position nudge, enable state, and heading calibration
 - local build / install / disable / enable / status / uninstall workflow
+- local verification of the angle conventions and the Section 4 line limits
 - no save or world-state mutation
 - zero GitHub Actions
 
-The current HUD is deliberately primitive. It exists to prove mechanics before final skin assets are bound.
+The HUD is still deliberately plain. It exists to prove mechanics before skin assets are
+bound, and the mechanics are now proven.
 
 ## Local build and install
 
@@ -31,8 +79,14 @@ From the repository root:
 
 ```powershell
 .\RuneCompass\build-local.ps1
+.\RuneCompass\verify-local.ps1
 .\RuneCompass\build-local.ps1 -Install
 ```
+
+`verify-local.ps1` loads the compiled DLL and checks every angle mapping against a
+hand-computed literal, then measures the Section 4 line limits. It exits non-zero on any
+failure. It cannot construct Unity objects, so it verifies the maths, not the
+rendering — the rendering checks live in [STATUS.md](STATUS.md).
 
 Other lifecycle commands:
 
@@ -54,7 +108,26 @@ The compass distinguishes:
 - **heading / cardinal orientation**: where the player is facing relative to north; and
 - **wind direction**: where the current world wind is blowing.
 
-The default design visualizes the direction the wind is blowing **toward**. That convention is explicit so it cannot be mistaken for the meteorological "coming from" convention.
+Rune Compass shows the direction the wind is blowing **toward**, never the
+meteorological "coming from" convention.
+
+This needs no conversion, because it is already Valheim's own convention. Three independent
+confirmations from the game's own code:
+
+1. **Sailing** — `Ship.GetWindAngleFactor()` drives sail power to zero as
+   `Dot(GetWindDir(), -forward)` approaches `+1`, the cannot-sail-into-the-wind case. Only
+   true if the vector points downwind.
+2. **Physics** — `Cinder.FixedUpdate` accelerates embers along `GetWindForce()`, which is
+   `GetWindDir()` scaled by strength. Debris drifts *with* the vector.
+3. **Valheim's own indicator** — `Minimap.UpdateWindMarker` rotates its marker by
+   `-LookRotation(GetWindDir()).eulerAngles.y`, identical to Rune Compass's mapping.
+
+**Quickest check if you ever doubt it:** open the vanilla minimap and compare its wind
+marker against the compass pointer. They are driven by the same value through the same
+formula, so they must agree. Smoke is harder to read than it sounds.
+
+`WindPointsToward = false` flips to the meteorological "coming from" convention if you
+prefer it.
 
 Heading and wind calculations remain separate in code even though both drive directional UI elements.
 
@@ -62,15 +135,23 @@ Heading and wind calculations remain separate in code even though both drive dir
 
 Skins control presentation only. They must not change gameplay behavior.
 
+Under heading-up, the **card-bearing ring is the rotating layer** — it is mounted on the
+rose and turns with it. The base plate, the lubber marker and the readouts are static. A
+skin chooses artwork for those layers; it never chooses which of them rotate.
+
 A skin may eventually define:
 
-- base / face texture
-- outer ring texture
-- heading pointer texture
-- wind pointer texture
-- optional north marker
-- pointer pivot and visual offsets
+- `base.png` — static back plate
+- `ring.png` — the rotating card carrying the cardinal marks
+- optional `ring_marks.png` — cardinal glyphs, if not baked into the ring
+- `wind_pointer.png` — mounted on the card, carries a pure world bearing
+- optional `north_marker.png` — mounted on the card at bearing 0
+- a static lubber marker for "you are looking this way"
+- pivot metadata and visual offsets
 - default visual scale or opacity where needed for alignment
+
+There is deliberately **no rotating heading pointer**: under heading-up your facing is
+always screen-up, so the lubber marker is static and the card moves instead.
 
 Planned initial skin families:
 
@@ -84,13 +165,17 @@ Existing compass concept art should be curated into these roles rather than copi
 
 ```text
 RuneCompass/
-├── Plugin.cs
-├── CompassController.cs
-├── CompassUI.cs
-├── HeadingProvider.cs
-├── WindProvider.cs
+├── Plugin.cs               BepInEx lifecycle + configuration
+├── CompassController.cs    visibility rules, per-frame update
+├── CompassUI.cs            runtime UI state, rotation, readouts, disposal
+├── CompassUiFactory.cs     primitive Unity UI construction
+├── HudAnchor.cs            screen-corner anchoring
+├── Bearing.cs              angle math + the two UI rotation mappings
+├── HeadingProvider.cs      camera forward -> world bearing
+├── WindProvider.cs         EnvMan.GetWindDir() -> world bearing
 ├── RuneCompass.csproj
 ├── build-local.ps1
+├── verify-local.ps1
 ├── manifest.json
 ├── icon.png
 ├── README.md
@@ -102,25 +187,16 @@ RuneCompass/
 
 `SkinDefinition` and `SkinLoader` are intentionally not implemented yet. The working compass behavior should earn the abstraction before it is introduced.
 
-## Validation checklist
+## Validation
 
-- [ ] Builds locally against the installed Valheim + BepInEx assemblies.
-- [ ] Loads with no BepInEx plugin errors.
-- [ ] Compass appears in No Map mode by default.
-- [ ] Compass stays hidden in normal-map mode by default.
-- [ ] Config override can show the compass outside No Map mode.
-- [ ] Heading indicator rotates correctly through a full 360 degrees.
-- [ ] Cardinal orientation is correct at N, E, S, and W.
-- [ ] Wind indicator is visually distinct from heading.
-- [ ] Wind indicator rotates correctly as Valheim wind changes.
-- [ ] Wind direction matches the documented **toward** convention.
-- [ ] Display position, scale, and opacity are configurable.
-- [ ] Disable suppresses the UI completely.
-- [ ] Enable restores it cleanly.
-- [ ] Uninstall leaves no save or world dependency.
-- [ ] After uninstall, Rune Compass is absent from active BepInEx plugin paths and logs.
-- [ ] Other installed BepInEx plugins are untouched.
-- [ ] No GitHub Actions are added or run.
+Mechanical validation is complete and recorded in [STATUS.md](STATUS.md): clean build,
+clean plugin load, angle assertions, Section 4 limits, and a SHA-256 lifecycle diff
+proving install/disable/enable/uninstall leave every other plugin, every other config,
+and all 100 character/world files byte-identical.
+
+The in-game acceptance pass — a full turn, wind cross-check, visibility modes, and the
+display config — is a numbered checklist in the same file. Issue #4 stays open until an
+operator completes it.
 
 ## Explicitly out of scope for the current slice
 

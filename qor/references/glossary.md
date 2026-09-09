@@ -45,3 +45,64 @@ definition: >
   BepInEx plugin and every Thunderstore Mod Manager profile - is never
   enumerated, moved, or deleted.
 ```
+
+## Heading-up orientation
+
+```yaml
+term: Heading-up orientation
+home: RuneCompass/README.md
+introduced_in_plan: plan-rune-compass-heading-up
+referenced_by:
+  - RuneCompass/README.md
+  - RuneCompass/STATUS.md
+  - RuneCompass/Assets/Skins/README.md
+  - docs/ARCHITECTURE_PLAN.md
+definition: >
+  The Rune Compass display model in which screen-up is always the direction
+  the player is looking. The rose rotates so each cardinal letter sits at its
+  true bearing relative to the player's view, and a fixed lubber marker at the
+  top of the dial marks the facing. The alternative, north-up, pins the letters
+  to the widget and rotates a needle instead; that model was replaced because it
+  cannot satisfy "N/E/S/W align with actual world orientation" and because it is
+  not how Valheim's own HUD draws direction. Implemented as a single
+  heading-dependent transform: the rose takes z = +heading, and anything mounted
+  on it carries a pure world bearing.
+```
+
+## Rose (compass rose)
+
+```yaml
+term: Rose (compass rose)
+home: RuneCompass/README.md
+introduced_in_plan: plan-rune-compass-heading-up
+referenced_by:
+  - RuneCompass/README.md
+  - RuneCompass/CompassUI.cs
+  - docs/ARCHITECTURE_PLAN.md
+definition: >
+  The rotating compass card in the Rune Compass HUD - the RectTransform that
+  carries the cardinal letters and the wind needle. It is the only
+  heading-dependent transform in the mod: it is rotated by z = +heading, so a
+  child placed at z = -bearing renders at heading - bearing and the heading term
+  cancels. Anchored and pivoted at (0.5, 0.5) with zero sizeDelta, so it spins
+  about the panel centre rather than orbiting a corner as an unconfigured
+  RectTransform would.
+```
+
+## Lubber marker
+
+```yaml
+term: Lubber marker
+home: RuneCompass/README.md
+introduced_in_plan: plan-rune-compass-heading-up
+referenced_by:
+  - RuneCompass/README.md
+  - RuneCompass/CompassUI.cs
+  - RuneCompass/Assets/Skins/README.md
+definition: >
+  The static marker at the top of the Rune Compass dial indicating where the
+  player is looking, named for the lubber line of a real marine compass. It never
+  rotates: under heading-up the facing is always screen-up, so the marker replaces
+  the rotating heading needle used by the earlier north-up design. It is a child
+  of the panel rather than of the rose, so the card turns beneath it.
+```

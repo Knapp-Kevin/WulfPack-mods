@@ -26,7 +26,7 @@ WulfPack Mods is the in-game modding side of the broader WulfPack Valheim projec
 | Mod | Purpose | Status | Documentation |
 | --- | --- | --- | --- |
 | **Rested Whispers** | Gentle, native Valheim warnings as the Rested effect fades. | ✅ Implemented, tested, validated | [README](RestedWhispers/README.md) |
-| **Rune Compass** | Immersive No Map navigation with heading and live wind direction. | 🧪 First playable implementation merged; local gameplay validation remains | [README](RuneCompass/README.md) · [Implementation plan](RuneCompass/IMPLEMENTATION_PLAN.md) · [Status](RuneCompass/STATUS.md) |
+| **Rune Compass** | Immersive No Map navigation: north-up compass card with heading needle and live wind. | 🧪 Built, installed and rendering in-game with ClassicWood; operator acceptance pass outstanding | [README](RuneCompass/README.md) · [Implementation plan](RuneCompass/IMPLEMENTATION_PLAN.md) · [Status](RuneCompass/STATUS.md) |
 | **Pied Piper** | One consistent Follow / Stay command for eligible tamed creatures. | 🧱 Repository mesh established; API discovery next | [README](PiedPiper/README.md) · [Implementation plan](PiedPiper/IMPLEMENTATION_PLAN.md) · [Status](PiedPiper/STATUS.md) |
 | **Vidar Shrugged** | Large-settlement performance instrumentation and optimization. | 🧪 Gate 0 foundation merged; runtime validation open | [README](VidarShrugged/README.md) · [Implementation plan](VidarShrugged/IMPLEMENTATION_PLAN.md) · [Benchmark plan](VidarShrugged/BENCHMARK_PLAN.md) · [Status](VidarShrugged/STATUS.md) |
 
@@ -91,6 +91,20 @@ That last one is not hypothetical. A governance check in this repository once pa
 rows for its entire life because the values it read were wrapped in bold markup, and every
 report it produced was hand-written instead. A gate that reports nothing has not passed —
 it has not run.
+
+A state-touching mod additionally has to show that a session with its patches live leaves
+character and world data sound. `verify-save-integrity.ps1` makes that runnable:
+
+```powershell
+.erify-save-integrity.ps1 -Baseline     # before playing
+.erify-save-integrity.ps1 -Compare      # after playing
+```
+
+It reports loss, truncation, implausible shrinkage and orphaned worlds — a `.fwl` with no
+`.db`, or the reverse, either of which makes a world stop appearing in the menu. It
+deliberately does **not** fail on files simply changing: a session that changes saves is a
+session where someone played. Treating that as a finding would make the gate noise, and a
+gate that always fires is ignored just as surely as one that never does.
 
 Raising a tier is a deliberate act: change the row, extend the gate, and say in the mod's
 `STATUS.md` what new evidence the higher tier now demands.
