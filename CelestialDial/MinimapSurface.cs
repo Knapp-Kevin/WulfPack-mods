@@ -27,6 +27,7 @@ internal sealed class MinimapSurface
     {
         if (Game.m_noMap)
         {
+            Restore();
             return true;
         }
 
