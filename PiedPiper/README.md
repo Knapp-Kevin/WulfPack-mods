@@ -52,11 +52,38 @@ Future tameable creatures can be supported when they use a compatible `Tameable`
 
 ## Rideable tameables
 
-Pied Piper does not fight Valheim's saddle authority.
+Riding is untouched. A saddle is its own interactable: `Sadle` implements `Interact` and
+handles mounting, while `Tameable.Interact` — the body interaction this mod affects —
+contains no mount path at all.
 
-When a tameable exposes a saddle component and currently has a saddle attached, Pied Piper temporarily disables commandability for that interaction. If the current game API no longer exposes a verifiable saddle state, Pied Piper also blocks the command for that rideable rather than guessing.
+So on a saddled creature, interacting with the **body** toggles Follow / Stay, and
+interacting with the **saddle** mounts, exactly as in vanilla. Both confirmed in play.
 
-For v0.1 this is intended to cover lox and asksvin generically.
+An earlier revision suppressed commanding whenever a saddle was present, meaning to protect
+riding. It could not — riding never went through the patched method — and it did break
+petting, so it was removed.
+
+## Before you uninstall
+
+**Command every creature back to Follow first.**
+
+Telling a creature to *stay* writes a patrol point into world state, through Valheim's own
+`RPC_Command`. That value outlives this mod. Once Pied Piper is removed, `m_commandable`
+reverts to the creature's prefab default, so a creature that vanilla never made commandable
+can no longer be commanded at all — and it cannot be released from its patrol point, because
+releasing it means commanding it back to Follow, which is the very thing the mod was
+providing.
+
+The creature stays anchored where you left it, permanently.
+
+Commanding back to Follow calls `ResetPatrolPoint` and clears the stored value. That path
+exists only while the mod is installed, so the safe order is:
+
+1. Command every Pied Piper–commanded creature back to **Follow**.
+2. Then `.\PiedPiperuild-local.ps1 -Uninstall`.
+
+Nothing else this mod does survives removal. `m_commandable` is re-applied from the prefab
+on every wake and is never written to a save.
 
 ## Explicit non-goals for v0.1
 
