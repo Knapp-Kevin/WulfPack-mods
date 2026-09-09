@@ -250,3 +250,83 @@ player-facing description.
 3. Complete the remaining human in-game acceptance checklist.
 4. Merge PR #9 only when those results are recorded.
 5. Start the visual/skin cycle with `ClassicWood`, then extract the loader, then prove a second skin.
+
+---
+
+# Storm + directional hierarchy — operator test protocol
+
+Session `2026-09-09T1559-7ca34d`, branch `feat/rune-compass-storm-hierarchy`.
+
+**Operator acceptance, 2026-09-09: the behaviour is accepted, and all 13 protocol rows
+pass.** The only outstanding work is the nine skin art assets
+(`Assets/Skins/ART_SPEC.md`, tracked in `SKINS_INDEX.md`), authored upstream. Every slot is
+wired and each missing file falls back to primitive geometry with identical motion, so no
+skin is broken by their absence.
+
+**Merge is blocked until every row below is recorded.** This cannot be automated: an
+unattended launch stops at the main menu, and `CompassController` builds no HUD until
+`Player.m_localPlayer` is non-null. A human has to load a world.
+
+## Setting up
+
+The compass is installed and the build is green. Two things make this quick:
+
+- **`ConfigWatcher` reloads config live**, so every value below can be retuned without a
+  relaunch. No value change costs a world load.
+- **Storms can be summoned rather than waited for.** `EnvMan.GetCurrentEnvironment()`
+  honours the force-environment override, so a console `env ThunderStorm` puts you in one
+  immediately, and `env clear` (or whatever your install's clear-weather name turns out to
+  be) takes you out. **Row S2 gives you the real names.**
+
+## The rows
+
+| # | Check | What should happen | Result |
+|---|---|---|---|
+| S1 | Clear weather, standing still | **No drift.** Every layer rests on its true bearing: dial still, arrow on your facing, sector on the camera, rune upwind. | **PASS**, and now provable — at capture 0 the maths returns the true bearing exactly, for any time, seed or turbulence. |
+| S2 | Read the environment log | `BepInEx/LogOutput.log` contains a `Rune Compass sees N environments` block listing your install's real names and wind ranges. Copy the stormy ones into `StormEnvironments`. |**PASS** - 49 environments listed. Storm set extended to 6 by wind evidence: `Ashlands_storm` 2.50-3.00, `Twilight_SnowStorm` 1.50-2.00, `SnowStorm` 1.30-2.00, `ThunderStorm` 0.80-1.00, `Ashlands_SeaStorm` 0.80-1.00, `Mistlands_thunder` 0.50-1.00. Boss arenas (`Eikthyr` 0.90-1.00, `Moder` 1.00) deliberately excluded as gameplay, not weather. Log also revealed `Ashlands_CinderRain` carries an inverted range, wind 0.75-0.70, in Valheim's own data. |
+| S3 | Transition into a storm | Capture ramps in smoothly over ~4s. No snap. | **PASS**, with a jerkiness finding now fixed - see S4. |
+| S4 | Sustained storm | The arrow and camera sector are **captured**: they show where the storm's field points, not where you face. **Turning must not recover true direction.** Motion should be drift plus occasional hard lurches, never jerky. | **PASS on capture** - turning no longer recovers direction. **Jerkiness found and fixed**: the lurch envelope began each pulse at full magnitude, stepping the storm bearing by up to 110 degrees in a single frame every 3.1s. It lived in the storm term, not the player term, which is why it persisted regardless of movement. Envelope is now `sin^6`, zero in value and slope at both ends. **Retest the feel.** |
+| S5 | Transition out of a storm | Releases smoothly and every layer settles on **its own true bearing** - the arrow on your facing, the sector on the camera, the rune upwind. **Not on north**, unless you happen to be facing north. | **PASS**, with the release too fast. Now asymmetric: attack 4s, release 12s. The original row text said "settles exactly on true north", which the compass has never done and was never meant to do - a defective protocol row, not a defective compass. |
+| S6 | Orbit the camera, character standing still | **Camera sector moves; the facing arrow holds.** This is the whole reason facing and camera are separate signals. |**PASS** |
+| S7 | Turn the character without moving the camera | Arrow moves; sector holds. The mirror of S6. |**PASS** |
+| S8 | Wind changes during a storm | The rune stays true while other layers are captured, and sits on the quarter the wind comes **FROM** - opposite the way smoke blows. | **PASS.** Initially reported as a failure against Moder's wind buff, which turned out to be the wrong reference: `EnvMan.UpdateWind` gates that buff behind `Ship.GetLocalShip()` and `IsWindControllActive()`, so it steers wind to the **ship's** heading and does nothing at all on land. The compass was correct. |
+| S9 | Disable Rune Compass mid-interference | HUD disappears cleanly, no exception. Re-enable: the compass returns settled, not mid-wander. | **PASS** |
+| S10 | `IndependentLayerInterference` both ways | Both ship. `true`: each layer is captured toward its own storm bearing, so the pointers disagree with each other. `false`: all are dragged toward one bearing, so they lie in agreement. **PASS — settled as a player preference rather than a hard-coded winner; neither is more correct.** |
+| S11 | Storm near the world edge | Interference is governed strictly by environment name, unaffected by the very high wind Valheim forces near the edge. | **PASS** - vindicates rejecting `GetWindIntensity()` as the storm gate during research, which would have read the world edge as a permanent storm. |
+| S12 | Ship wind gauge | Board a ship: Valheim's own wind gauge is hidden, leaving one wind readout. All three restore paths - step off, `Enabled = false`, leave No Map. | **PASS** - the mod's only touch of vanilla state, handed back on every exit path. |
+| S13 | Mistlands behaves as a storm | The compass is disturbed throughout the biome, whatever the weather, via the `StormBiomes` mask rather than by naming its three environments. | **PASS** - operator accepted. Note the biome is permanent, so interference there is constant rather than passing. |
+
+## OQ-1, closed
+
+`IndependentLayerInterference` shipped as a **player setting**, not a comparison instrument
+to be resolved and deleted. Under the capture model the two modes are genuinely different
+experiences rather than better and worse versions of one, so there was no winner to pick.
+
+The `verify-local.ps1 -Seal` mode that existed to enforce the toggle's deletion has been
+**removed entirely**, since the thing it guarded is now meant to be there. It was not kept
+and emptied: a seal check with nothing left to check would pass vacuously, which is
+`SHADOW_GENOME` Failure #7 exactly. The forbidden-identifier guard in the main run is
+untouched and still refuses every superseded identifier.
+
+## What is already proven locally
+
+| Claim | Evidence |
+|---|---|
+| Builds clean | `build-local.ps1`: 0 warnings, 0 errors |
+| Angle math unchanged | `verify-local.ps1`: 25 bearing assertions against hand-computed literals |
+| Wander is bounded and deterministic | 10000-point sweep stays within [-1, 1]; repeat calls agree; distinct seeds separate layers |
+| Envelope is correct at both edges | Reaches 1.0 at exactly the ramp, releases symmetrically to 0.0, never leaves [0,1], and a storm ending mid-attack releases from 0.25 rather than 1.0 |
+| Clear weather adds no rotation | `Deflection` returns exactly 0 at envelope level 0, at three different times and seeds |
+| Both bounds hold | Deflection 180 clamps to 35, -5 clamps to 0; ramp 0.5 clamps to 3.0 |
+| Wind immunity is structural | `CompassUI.WindAmplitude` reads 0 off the compiled type |
+| Toggle reaches the layers | `StormState` carries `IndependentLayers` and `DirectionLayer.Point` takes the whole state, asserted by reflection. This is the check that was missing when the setting silently became decoration |
+| Superseded model cannot return | `verify-local.ps1` refuses `RoseRotationZ`, `WindRotationZ`, `CreateWindNeedle`, `_rose` |
+| Razor holds | Largest file `CompassUI.cs` 217/250; longest method 34/40 |
+| Nothing outside the mod was touched | Install wrote exactly 4 files, all under `plugins/RuneCompass`; save integrity clean |
+
+## What only a human can confirm
+
+Everything about how it **looks and feels**: whether the hierarchy reads correctly at a
+glance, whether 22 degrees of wander is too much or too little, whether the ramp is the
+right length, and whether independent or shared interference is the better effect. Those
+are taste calls made in a live storm, and no assertion substitutes for them.

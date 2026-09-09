@@ -22,6 +22,9 @@ internal sealed class SkinManifest
     public string ringTexture = string.Empty;
     public string windPointerTexture = string.Empty;
     public string lubberMarkerTexture = string.Empty;
+    public string cameraWedgeTexture = string.Empty;
+    public string characterArrowTexture = string.Empty;
+    public string windGustTexture = string.Empty;
     public float defaultScale = 1f;
 }
 
@@ -30,9 +33,14 @@ internal sealed class SkinManifest
 /// </summary>
 /// <remarks>
 /// Presentation only. A skin supplies textures and a resting scale; it cannot change which
-/// layers rotate. The ring turns with the rose by <c>+heading</c>, the wind pointer carries
-/// a pure world bearing, and base and lubber marker are static — that is a behavioural
-/// invariant of the heading-up model, not a per-skin choice.
+/// layers rotate, what they mean, or how far a storm displaces them. Under the north-up
+/// model every indicator is handed an absolute world bearing and rendered at
+/// <c>z = -bearing</c>: the card rests on north, the camera wedge sits on the view bearing,
+/// the character arrow on the body bearing, and the wind rune orbits the rim on the
+/// wind-toward bearing.
+///
+/// <para>Every texture except the ring is optional. A missing one falls back to primitive
+/// geometry with identical motion, so a partial skin degrades in appearance only.</para>
 /// </remarks>
 internal sealed class CompassSkin
 {
@@ -42,9 +50,17 @@ internal sealed class CompassSkin
     public Sprite? Ring;
     public Sprite? WindPointer;
     public Sprite? LubberMarker;
+    public Sprite? CameraWedge;
+    public Sprite? CharacterArrow;
+    public Sprite? WindGust;
 
-    /// <summary>A skin is only usable if it can draw the two layers that carry direction.</summary>
-    public bool IsUsable => Ring != null && WindPointer != null;
+    /// <summary>
+    /// A skin is usable once it can draw the card. The ring is the one layer with no
+    /// primitive equivalent, because on a skinned compass the cardinal marks <i>are</i> the
+    /// ring. Every directional indicator has a fallback, so a skin missing one of those
+    /// degrades to mod-drawn geometry rather than being rejected outright.
+    /// </summary>
+    public bool IsUsable => Ring != null;
 }
 
 internal static class SkinLoader
@@ -67,19 +83,11 @@ internal static class SkinLoader
             }
 
             SkinManifest manifest = JsonUtility.FromJson<SkinManifest>(File.ReadAllText(manifestPath));
-            CompassSkin skin = new()
-            {
-                Name = string.IsNullOrEmpty(manifest.name) ? skinName : manifest.name,
-                DefaultScale = manifest.defaultScale > 0f ? manifest.defaultScale : 1f,
-                Base = LoadSprite(dir, manifest.baseTexture, log),
-                Ring = LoadSprite(dir, manifest.ringTexture, log),
-                WindPointer = LoadSprite(dir, manifest.windPointerTexture, log),
-                LubberMarker = LoadSprite(dir, manifest.lubberMarkerTexture, log),
-            };
+            CompassSkin skin = Build(manifest, dir, skinName, log);
 
             if (!skin.IsUsable)
             {
-                log.LogWarning($"Rune Compass skin '{skinName}' is missing a ring or wind pointer.");
+                log.LogWarning($"Rune Compass skin '{skinName}' has no usable ring texture.");
                 return null;
             }
 
@@ -91,6 +99,27 @@ internal static class SkinLoader
             log.LogWarning($"Rune Compass could not load skin '{skinName}': {ex.GetType().Name}: {ex.Message}");
             return null;
         }
+    }
+
+    /// <summary>
+    /// Decodes every texture the manifest names. Split out of <see cref="Load"/> because
+    /// the three indicator layers pushed that method one line past the Section 4 limit.
+    /// </summary>
+    private static CompassSkin Build(
+        SkinManifest manifest, string dir, string skinName, ManualLogSource log)
+    {
+        return new CompassSkin
+        {
+            Name = string.IsNullOrEmpty(manifest.name) ? skinName : manifest.name,
+            DefaultScale = manifest.defaultScale > 0f ? manifest.defaultScale : 1f,
+            Base = LoadSprite(dir, manifest.baseTexture, log),
+            Ring = LoadSprite(dir, manifest.ringTexture, log),
+            WindPointer = LoadSprite(dir, manifest.windPointerTexture, log),
+            LubberMarker = LoadSprite(dir, manifest.lubberMarkerTexture, log),
+            CameraWedge = LoadSprite(dir, manifest.cameraWedgeTexture, log),
+            CharacterArrow = LoadSprite(dir, manifest.characterArrowTexture, log),
+            WindGust = LoadSprite(dir, manifest.windGustTexture, log),
+        };
     }
 
     private static Sprite? LoadSprite(string dir, string fileName, ManualLogSource log)
