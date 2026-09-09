@@ -13,6 +13,7 @@ internal sealed class DialController : IDisposable
     private DialUI? _ui;
     private InstrumentToggleUI? _toggle;
     private bool _dialSelected;
+    private bool _runeCompassSuppressed;
     private bool _loggedFirstRender;
 
     public DialController(ManualLogSource log)
@@ -37,8 +38,6 @@ internal sealed class DialController : IDisposable
         if (!_dialSelected)
         {
             _ui?.SetVisible(false);
-            _minimap.Restore();
-            _runeCompass.TrySetSuppressed(false);
             return;
         }
 
@@ -62,8 +61,7 @@ internal sealed class DialController : IDisposable
 
     public void Dispose()
     {
-        _runeCompass.TrySetSuppressed(false);
-        _minimap.Restore();
+        ReleaseInstrumentRegion();
         _toggle?.Dispose();
         _toggle = null;
         _ui?.Dispose();
@@ -97,8 +95,7 @@ internal sealed class DialController : IDisposable
         }
 
         _ui?.SetVisible(false);
-        _minimap.Restore();
-        _runeCompass.TrySetSuppressed(false);
+        ReleaseInstrumentRegion();
     }
 
     private bool TryAcquireInstrumentRegion()
@@ -108,20 +105,37 @@ internal sealed class DialController : IDisposable
             return false;
         }
 
-        if (_runeCompass.TrySetSuppressed(true))
+        if (_runeCompassSuppressed)
         {
             return true;
         }
 
+        if (!_runeCompass.TrySetSuppressed(true))
+        {
+            _minimap.Restore();
+            return false;
+        }
+
+        _runeCompassSuppressed = true;
+        return true;
+    }
+
+    private void ReleaseInstrumentRegion()
+    {
         _minimap.Restore();
-        return false;
+        if (!_runeCompassSuppressed)
+        {
+            return;
+        }
+
+        _runeCompass.TrySetSuppressed(false);
+        _runeCompassSuppressed = false;
     }
 
     private void HideForNoWorld()
     {
         _ui?.SetVisible(false);
         _toggle?.SetVisible(false);
-        _minimap.Restore();
-        _runeCompass.TrySetSuppressed(false);
+        ReleaseInstrumentRegion();
     }
 }
