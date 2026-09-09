@@ -4,7 +4,7 @@ Pied Piper is a deliberately small Valheim quality-of-life mod that gives eligib
 
 > One command. One behavior. Follow or stay.
 
-**Current state: functionally complete and operator-validated on Valheim 1.0.** The mod compiles cleanly, loads cleanly, passes lifecycle containment, and its claimed interaction behavior has been confirmed in play. Remaining work is release polish rather than gameplay implementation, including a Thunderstore-ready `icon.png`.
+**Current state: functionally complete and operator-validated on Valheim 1.0.** The gameplay scope is done. The remaining release dependency is a Thunderstore-ready `icon.png` plus one final local package/save-integrity pass.
 
 See [CONCEPT.md](CONCEPT.md) for the product/visual contract and [STATUS.md](STATUS.md) for validation evidence.
 
@@ -120,6 +120,32 @@ From the repository root:
 
 The helper manages only Pied Piper-owned files and does not touch unrelated plugins.
 
+## Thunderstore package
+
+`package-local.ps1` builds the mod and creates a clean local Thunderstore ZIP under `dist/`.
+
+```powershell
+.\PiedPiper\package-local.ps1
+```
+
+If Steam discovery cannot find Valheim:
+
+```powershell
+.\PiedPiper\package-local.ps1 -ValheimRoot "D:\SteamLibrary\steamapps\common\Valheim"
+```
+
+The package gate refuses to create a ZIP unless:
+
+- `manifest.json` parses and carries the expected package name, semantic version, website, description, and BepInEx dependency;
+- `icon.png` exists, is a real PNG, and is exactly 256×256;
+- the Release build produces `PiedPiper.dll`;
+- the staged package contains exactly `manifest.json`, `README.md`, `icon.png`, and `plugins/PiedPiper/PiedPiper.dll`;
+- the final ZIP is successfully created.
+
+On success the script prints the package path and SHA-256. Generated staging/ZIP output lives under ignored `dist/` and is not committed.
+
+Right now this gate is expected to stop at the icon check because `PiedPiper/icon.png` has not yet been created. That is intentional: a missing release asset should block packaging loudly rather than produce a package we already know Thunderstore will reject.
+
 ## Repository layout
 
 ```text
@@ -128,6 +154,7 @@ PiedPiper/
 ├── TameablePatches.cs
 ├── PiedPiper.csproj
 ├── build-local.ps1
+├── package-local.ps1
 ├── manifest.json
 ├── README.md
 ├── CONCEPT.md
@@ -137,6 +164,13 @@ PiedPiper/
 
 ## Release readiness
 
-Gameplay behavior is complete for the current scope. Before a Thunderstore release, finish release packaging and add a proper `icon.png`; do not reopen gameplay discovery merely because the old README said "API discovery next."
+Gameplay behavior is complete for the current scope and the release-package path is now defined and locally enforceable. Remaining release work is:
 
-GitHub Actions are prohibited in WulfPack Mods. Pied Piper is built and validated locally with zero Actions runs.
+1. create and commit the 256×256 Thunderstore `icon.png`;
+2. run `package-local.ps1` successfully;
+3. repeat the save-integrity comparison after a clean game shutdown for the final release record;
+4. inspect the produced ZIP before upload.
+
+Do not reopen gameplay discovery merely because old documentation once said "API discovery next."
+
+GitHub Actions are prohibited in WulfPack Mods. Pied Piper is built, validated, and packaged locally with zero Actions runs.
