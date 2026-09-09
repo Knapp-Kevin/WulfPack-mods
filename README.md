@@ -12,7 +12,7 @@ WulfPack Mods is the in-game modding side of the broader WulfPack Valheim projec
 | --- | --- | --- | --- |
 | **Rested Whispers** | Native Valheim warnings as the Rested effect fades. | ✅ Implemented, tested, validated | [README](RestedWhispers/README.md) · [Concept](RestedWhispers/CONCEPT.md) |
 | **Rune Compass** | Immersive No Map navigation with north-up heading, camera view, wind, and storm interference. | 🧪 Runtime behavior accepted; nine skin art assets remain | [README](RuneCompass/README.md) · [Concept](RuneCompass/CONCEPT.md) · [Asset index](RuneCompass/Assets/Skins/ASSET_INDEX.md) · [Status](RuneCompass/STATUS.md) |
-| **Celestial Dial** | Toggleable Sól and Máni day-cycle instrument showing world day and position in Valheim's day/night cycle. | 🎨 Product/visual framework established; implementation discovery next | [README](CelestialDial/README.md) · [Concept](CelestialDial/CONCEPT.md) · [Asset index](CelestialDial/Assets/Skins/ASSET_INDEX.md) · [Status](CelestialDial/STATUS.md) |
+| **Celestial Dial** | Toggleable Sól and Máni day-cycle instrument showing world day and position in Valheim's day/night cycle. | 🧪 Primitive runtime proof candidate implemented; local 1.0 validation pending | [README](CelestialDial/README.md) · [Concept](CelestialDial/CONCEPT.md) · [Asset index](CelestialDial/Assets/Skins/ASSET_INDEX.md) · [Status](CelestialDial/STATUS.md) |
 | **Pied Piper** | Native Follow / Stay interaction for eligible tamed creatures. | ✅ Functionally complete and operator-validated; release icon/packaging remains | [README](PiedPiper/README.md) · [Concept](PiedPiper/CONCEPT.md) · [Status](PiedPiper/STATUS.md) |
 | **Vidar Shrugged** | Large-settlement performance instrumentation and optimization. | 🧪 Gate 0 foundation merged; later optimization gates remain | [README](VidarShrugged/README.md) · [Concept](VidarShrugged/CONCEPT.md) · [Implementation plan](VidarShrugged/IMPLEMENTATION_PLAN.md) · [Benchmark plan](VidarShrugged/BENCHMARK_PLAN.md) · [Status](VidarShrugged/STATUS.md) |
 
@@ -102,12 +102,15 @@ Celestial Dial is a Sól and Máni themed instrument that answers exactly two qu
 
 The concept and runtime evidence are deliberately separated. Corrected concept art lives only on the mod's concept page. The README does not embed it as if it were a screenshot.
 
-The fixed visual rules are Sól on the upper/day half, Máni on the lower/night half, a readable central day plate, a continuous cycle indicator, explicit dawn/dusk transitions, and a persistent map/dial toggle.
+A first read-only runtime proof candidate now exists. It includes the BepInEx project/plugin boundary, a fail-closed historical `EnvMan` time-source adapter, local lifecycle tooling, and a primitive circular dial with `DAY N`, Sól above, Máni below, dawn/dusk transitions, and a moving normalized-cycle marker.
+
+The candidate is deliberately not called playable yet. The repository-owned discovery probe and local build must be run against the installed Valheim 1.0 assemblies, then the day and cycle mapping must be observed in-game. The persistent minimap/Rune Compass toggle remains the next interaction tranche after that evidence is recorded.
 
 → [README](CelestialDial/README.md)  
 → [Concept](CelestialDial/CONCEPT.md)  
 → [Skin asset index](CelestialDial/Assets/Skins/ASSET_INDEX.md)  
-→ [Status](CelestialDial/STATUS.md)
+→ [Status](CelestialDial/STATUS.md)  
+→ [Runtime tracker #20](https://github.com/Knapp-Kevin/WulfPack-mods/issues/20)
 
 ## Pied Piper
 
@@ -158,6 +161,13 @@ WulfPack-mods/
 │   ├── STATUS.md
 │   └── Assets/Skins/
 ├── CelestialDial/
+│   ├── Plugin.cs
+│   ├── DialController.cs
+│   ├── DialUI.cs
+│   ├── ValheimTimeSource.cs
+│   ├── CelestialDial.csproj
+│   ├── build-local.ps1
+│   ├── discover-time-api.ps1
 │   ├── README.md
 │   ├── CONCEPT.md
 │   ├── STATUS.md
@@ -225,7 +235,7 @@ See [MOD_DOCUMENTATION_STANDARD.md](MOD_DOCUMENTATION_STANDARD.md) for the requi
 
 - **Rested Whispers:** ✅ implemented, tested, validated, accepted.
 - **Rune Compass:** 🧪 behavior accepted; nine skin assets remain before visual completion.
-- **Celestial Dial:** 🎨 concept/product and skin contracts established; gameplay implementation not started.
+- **Celestial Dial:** 🧪 primitive runtime proof candidate implemented; installed Valheim 1.0 compile/runtime acceptance pending.
 - **Pied Piper:** ✅ gameplay scope complete and operator-validated; release icon/packaging remains.
 - **Vidar Shrugged:** 🧪 Gate 0 foundation merged; later optimization gates remain.
 - **GitHub Actions:** prohibited. Zero runs expected.
