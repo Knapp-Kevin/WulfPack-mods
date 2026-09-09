@@ -13,7 +13,7 @@ WulfPack Mods is the in-game modding side of the broader WulfPack Valheim projec
 | **Rested Whispers** | Native Valheim warnings as the Rested effect fades. | ✅ Implemented, tested, validated | [README](RestedWhispers/README.md) · [Concept](RestedWhispers/CONCEPT.md) |
 | **Rune Compass** | Immersive No Map navigation with north-up heading, camera view, wind, and storm interference. | 🧪 Runtime accepted; optional Celestial Dial interop candidate added; nine skin art assets remain | [README](RuneCompass/README.md) · [Concept](RuneCompass/CONCEPT.md) · [Asset index](RuneCompass/Assets/Skins/ASSET_INDEX.md) · [Status](RuneCompass/STATUS.md) |
 | **Celestial Dial** | Toggleable Sól and Máni day-cycle instrument showing world day and position in Valheim's day/night cycle. | 🧪 Primitive runtime and persistent-toggle candidates implemented; local 1.0 validation pending | [README](CelestialDial/README.md) · [Concept](CelestialDial/CONCEPT.md) · [Asset index](CelestialDial/Assets/Skins/ASSET_INDEX.md) · [Status](CelestialDial/STATUS.md) |
-| **Pied Piper** | Native Follow / Stay interaction for eligible tamed creatures. | ✅ Functionally complete and operator-validated; release icon/packaging remains | [README](PiedPiper/README.md) · [Concept](PiedPiper/CONCEPT.md) · [Status](PiedPiper/STATUS.md) |
+| **Pied Piper** | Native Follow / Stay interaction for eligible tamed creatures. | ✅ Functionally complete and operator-validated; icon/final release validation remains | [README](PiedPiper/README.md) · [Concept](PiedPiper/CONCEPT.md) · [Status](PiedPiper/STATUS.md) |
 | **Vidar Shrugged** | Large-settlement performance instrumentation and optimization. | 🧪 Gate 0 foundation merged; later optimization gates remain | [README](VidarShrugged/README.md) · [Concept](VidarShrugged/CONCEPT.md) · [Implementation plan](VidarShrugged/IMPLEMENTATION_PLAN.md) · [Benchmark plan](VidarShrugged/BENCHMARK_PLAN.md) · [Status](VidarShrugged/STATUS.md) |
 
 ## Documentation model
@@ -121,7 +121,7 @@ The current gameplay scope is functionally complete and operator-validated on Va
 
 Important removal rule: command every Pied Piper-commanded creature back to **Follow** before uninstalling. Valheim's native Stay command writes a patrol point that can outlive the mod; returning to Follow clears it.
 
-Remaining work is release polish, notably a Thunderstore-ready `icon.png`, not API discovery.
+The local Thunderstore package path is now defined by `PiedPiper/package-local.ps1`. Remaining release work is a 256×256 `icon.png`, one successful local package build/inspection, and the final clean-shutdown save-integrity record.
 
 → [README](PiedPiper/README.md)  
 → [Concept](PiedPiper/CONCEPT.md)  
@@ -185,6 +185,7 @@ WulfPack-mods/
 ├── PiedPiper/
 │   ├── README.md
 │   ├── CONCEPT.md
+│   ├── package-local.ps1
 │   └── STATUS.md
 └── VidarShrugged/
     ├── README.md
@@ -244,6 +245,6 @@ See [MOD_DOCUMENTATION_STANDARD.md](MOD_DOCUMENTATION_STANDARD.md) for the requi
 - **Rested Whispers:** ✅ implemented, tested, validated, accepted.
 - **Rune Compass:** 🧪 established compass behavior accepted; optional Celestial Dial interop candidate awaits local acceptance; nine skin assets remain.
 - **Celestial Dial:** 🧪 primitive runtime and persistent-toggle candidates implemented; installed Valheim 1.0 compile/runtime acceptance pending.
-- **Pied Piper:** ✅ gameplay scope complete and operator-validated; release icon/packaging remains.
+- **Pied Piper:** ✅ gameplay scope complete and operator-validated; icon/final package validation remains.
 - **Vidar Shrugged:** 🧪 Gate 0 foundation merged; later optimization gates remain.
 - **GitHub Actions:** prohibited. Zero runs expected.
