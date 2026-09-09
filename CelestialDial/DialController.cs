@@ -7,20 +7,43 @@ internal sealed class DialController : IDisposable
 {
     private readonly ManualLogSource _log;
     private readonly ValheimTimeSource _timeSource;
+    private readonly MinimapSurface _minimap;
+    private readonly RuneCompassBridge _runeCompass;
+
     private DialUI? _ui;
+    private InstrumentToggleUI? _toggle;
+    private bool _dialSelected;
+    private bool _runeCompassSuppressed;
     private bool _loggedFirstRender;
 
     public DialController(ManualLogSource log)
     {
         _log = log;
         _timeSource = new ValheimTimeSource(log);
+        _minimap = new MinimapSurface(log);
+        _runeCompass = new RuneCompassBridge(log);
     }
 
     public void Tick()
     {
-        if (Player.m_localPlayer == null || !_timeSource.TryRead(out DayCycleState state))
+        if (Player.m_localPlayer == null)
+        {
+            HideForNoWorld();
+            return;
+        }
+
+        EnsureToggle();
+        _toggle!.SetVisible(true);
+
+        if (!_dialSelected)
         {
             _ui?.SetVisible(false);
+            return;
+        }
+
+        if (!_timeSource.TryRead(out DayCycleState state) || !TryAcquireInstrumentRegion())
+        {
+            SelectDial(false);
             return;
         }
 
@@ -38,7 +61,81 @@ internal sealed class DialController : IDisposable
 
     public void Dispose()
     {
+        ReleaseInstrumentRegion();
+        _toggle?.Dispose();
+        _toggle = null;
         _ui?.Dispose();
         _ui = null;
+    }
+
+    private void EnsureToggle()
+    {
+        if (_toggle != null)
+        {
+            return;
+        }
+
+        _toggle = new InstrumentToggleUI();
+        _toggle.Clicked += ToggleSelection;
+        _toggle.SetSelected(_dialSelected);
+    }
+
+    private void ToggleSelection()
+    {
+        SelectDial(!_dialSelected);
+    }
+
+    private void SelectDial(bool selected)
+    {
+        _dialSelected = selected;
+        _toggle?.SetSelected(selected);
+        if (selected)
+        {
+            return;
+        }
+
+        _ui?.SetVisible(false);
+        ReleaseInstrumentRegion();
+    }
+
+    private bool TryAcquireInstrumentRegion()
+    {
+        if (!_minimap.TrySuppress())
+        {
+            return false;
+        }
+
+        if (_runeCompassSuppressed)
+        {
+            return true;
+        }
+
+        if (!_runeCompass.TrySetSuppressed(true))
+        {
+            _minimap.Restore();
+            return false;
+        }
+
+        _runeCompassSuppressed = true;
+        return true;
+    }
+
+    private void ReleaseInstrumentRegion()
+    {
+        _minimap.Restore();
+        if (!_runeCompassSuppressed)
+        {
+            return;
+        }
+
+        _runeCompass.TrySetSuppressed(false);
+        _runeCompassSuppressed = false;
+    }
+
+    private void HideForNoWorld()
+    {
+        _ui?.SetVisible(false);
+        _toggle?.SetVisible(false);
+        ReleaseInstrumentRegion();
     }
 }

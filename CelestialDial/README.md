@@ -38,15 +38,21 @@ Celestial Dial should not:
 
 ## Core interaction
 
-Where maps are available, the minimap remains the normal state. A small circular control near its upper-right edge will toggle the Celestial Dial surface.
+A primitive persistent toggle candidate now exists as its own top-right HUD object. It is deliberately independent of the minimap object so the control can remain present on No Map servers.
 
-The implementation owns a separate UI surface rather than modifying minimap internals. The map/dial visibility switch and Rune Compass interop belong to the persistent-toggle tranche and are not yet claimed complete.
+When the dial is selected:
 
-In No Map play the map surface may be absent, but the final toggle remains its own HUD control so the player can still open the Celestial Dial.
+- in a normal map world, Celestial Dial resolves the small minimap root conservatively through reflection, records its prior active state, hides it while the dial is selected, and restores that exact state afterward;
+- in No Map play, there is no minimap surface to suppress, so the control remains available and the dial can still be selected;
+- if Rune Compass is installed, Celestial Dial discovers its optional public presentation bridge through reflection and suppresses only the compass HUD while the dial is selected;
+- if Rune Compass is absent, there is no hard dependency and the switch still works;
+- if a loaded sibling surface cannot be resolved safely, the attempted switch fails closed and restores what it already changed.
+
+This is implementation state, not acceptance evidence. The exact Valheim 1.0 minimap field and runtime switching behavior still require local verification.
 
 ## Primitive runtime proof
 
-A first runtime candidate now exists in the repository.
+A first runtime candidate exists in the repository.
 
 It contains:
 
@@ -55,11 +61,14 @@ It contains:
 - a fail-closed `ValheimTimeSource` that resolves the historical `EnvMan.GetCurrentDay()` and `m_smoothDayFraction` candidates through reflection;
 - a primitive circular HUD with fixed Sól/day and Máni/night regions;
 - a center `DAY N` readout;
-- a moving perimeter marker driven by the normalized cycle fraction.
+- a moving perimeter marker driven by the normalized cycle fraction;
+- a persistent top-right instrument toggle candidate;
+- conservative minimap state preservation;
+- optional Rune Compass presentation interop with no compile-time dependency.
 
 The primitive maps the historical normalized fraction so `0.5` is the top of the dial, `0.0/1.0` is the bottom, `0.25` is the left transition, and `0.75` is the right transition. That visual mapping is a candidate until the installed Valheim 1.0 values are observed in-game.
 
-The runtime intentionally fails closed. If either candidate time member is absent, returns the wrong type, throws, or produces a non-normalized fraction, the dial remains hidden and logs one warning instead of guessing.
+The runtime intentionally fails closed. If either candidate time member is absent, returns the wrong type, throws, or produces a non-normalized fraction, the dial remains hidden rather than guessing.
 
 **This candidate is not yet called playable.** It still requires compilation and in-game acceptance against the installed Valheim 1.0 build.
 
@@ -77,7 +86,7 @@ The semantic model is stable regardless of skin:
 | Dusk marker | transition into night |
 | Celestial indicator | current position in the cycle |
 | Day plate | current world day number |
-| Toggle glyph | switch between minimap and Celestial Dial |
+| Toggle glyph | switch between minimap/Rune Compass and Celestial Dial |
 
 See [Assets/Skins/ASSET_INDEX.md](Assets/Skins/ASSET_INDEX.md) for the component index and generation order.
 
@@ -113,21 +122,24 @@ Lifecycle commands:
 .\CelestialDial\build-local.ps1 -Uninstall
 ```
 
-The discovery report and live game remain the authority for accepting the candidate time seam.
+The discovery report and live game remain the authority for accepting the candidate time and minimap seams.
 
 ## Technical posture
 
-Celestial Dial remains in the repository's **read-only** risk tier. Implementation must establish authoritative Valheim 1.0 behavior for:
+Celestial Dial remains in the repository's **read-only** risk tier. The toggle changes only visibility of HUD objects and restores any minimap state it temporarily owns. It does not modify map data, world state, saves, ZDOs, environment state, or networking.
+
+Installed Valheim 1.0 behavior must still establish:
 
 - current world day;
 - normalized position in the current day/night cycle;
-- HUD/minimap anchoring and lifecycle;
-- persistent toggle behavior in both map and No Map play.
+- exact small-minimap root and HUD lifecycle;
+- repeated toggle behavior in map and No Map play;
+- optional Rune Compass interop behavior.
 
 Historical mod source may inform discovery, but installed Valheim 1.0 assemblies and live behavior are the contract.
 
 ## Current state
 
-The first runtime proof candidate is implemented in-repository but not yet locally compiled or accepted in-game. The persistent minimap/Rune Compass toggle and presentation skins remain follow-on work.
+The primitive runtime and persistent-toggle candidates are implemented in-repository but not yet locally compiled or accepted in-game. Presentation skins remain follow-on work after the technical surfaces are proven.
 
 See [STATUS.md](STATUS.md) for the working state and [CONCEPT.md](CONCEPT.md) for intended visuals.

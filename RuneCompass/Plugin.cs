@@ -29,6 +29,7 @@ public sealed class Plugin : BaseUnityPlugin
         CompassConfig config = new(Config);
         _configWatcher = new ConfigWatcher(Config, Logger);
         _controller = new CompassController(Logger, config.ToSettings(skins));
+        RuneCompassInterop.Bind(_controller.SetExternalSuppressed);
 
         Logger.LogInfo(
             $"{PluginName} {PluginVersion} loaded. Skins root: {skins} "
@@ -59,6 +60,7 @@ public sealed class Plugin : BaseUnityPlugin
 
     private void OnDestroy()
     {
+        RuneCompassInterop.Unbind();
         _controller?.Dispose();
         _controller = null;
     }
