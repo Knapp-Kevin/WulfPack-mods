@@ -1,0 +1,9 @@
+{
+  "name": "CelestialDial",
+  "version_number": "0.1.0",
+  "website_url": "https://github.com/Knapp-Kevin/WulfPack-mods",
+  "description": "A toggleable Sól and Máni celestial dial showing the current Valheim world day and position in the day/night cycle.",
+  "dependencies": [
+    "denikson-BepInExPack_Valheim-5.4.2202"
+  ]
+}

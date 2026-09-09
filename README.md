@@ -11,6 +11,7 @@ WulfPack Mods is the in-game modding side of the broader WulfPack Valheim projec
 - [Current mods](#current-mods)
   - [Rested Whispers](#rested-whispers)
   - [Rune Compass](#rune-compass)
+  - [Celestial Dial](#celestial-dial)
   - [Pied Piper](#pied-piper)
   - [Vidar Shrugged](#vidar-shrugged)
 - [Repository structure](#repository-structure)
@@ -27,6 +28,7 @@ WulfPack Mods is the in-game modding side of the broader WulfPack Valheim projec
 | --- | --- | --- | --- |
 | **Rested Whispers** | Gentle, native Valheim warnings as the Rested effect fades. | ✅ Implemented, tested, validated | [README](RestedWhispers/README.md) |
 | **Rune Compass** | Immersive No Map navigation: north-up compass card with heading needle and live wind. | 🧪 Built, installed and rendering in-game with ClassicWood; operator acceptance pass outstanding | [README](RuneCompass/README.md) · [Implementation plan](RuneCompass/IMPLEMENTATION_PLAN.md) · [Status](RuneCompass/STATUS.md) |
+| **Celestial Dial** | Toggleable Sól and Máni day-cycle instrument showing the current world day and position in Valheim's day/night cycle. | 🎨 Concept and skin framework established; implementation discovery next | [README](CelestialDial/README.md) · [Implementation plan](CelestialDial/IMPLEMENTATION_PLAN.md) · [Status](CelestialDial/STATUS.md) |
 | **Pied Piper** | One consistent Follow / Stay command for eligible tamed creatures. | 🧱 Repository mesh established; API discovery next | [README](PiedPiper/README.md) · [Implementation plan](PiedPiper/IMPLEMENTATION_PLAN.md) · [Status](PiedPiper/STATUS.md) |
 | **Vidar Shrugged** | Large-settlement performance instrumentation and optimization. | 🧪 Gate 0 foundation merged; runtime validation open | [README](VidarShrugged/README.md) · [Implementation plan](VidarShrugged/IMPLEMENTATION_PLAN.md) · [Benchmark plan](VidarShrugged/BENCHMARK_PLAN.md) · [Status](VidarShrugged/STATUS.md) |
 
@@ -41,6 +43,7 @@ and it earns a stricter gate regardless of where its folder sits.
 | --- | --- | --- | --- |
 | **Rested Whispers** | read-only | reads status effects, shows native messages | build, load, lifecycle containment |
 | **Rune Compass** | read-only | reads camera heading and wind, draws a HUD | build, load, lifecycle containment |
+| **Celestial Dial** | read-only | reads world day and day/night-cycle position, draws a toggleable HUD | build, load, lifecycle containment |
 | **Vidar Shrugged** | read-only | reads frame timings and scene population | build, load, lifecycle containment |
 | **Pied Piper** | state-touching | Harmony patches on `Tameable`; issues commands to live creatures | build, load, lifecycle containment, **plus a save-integrity diff across a play session with the patches live** |
 
@@ -167,6 +170,32 @@ The final visual system is designed around interchangeable presentation-only ski
 → [Implementation plan](RuneCompass/IMPLEMENTATION_PLAN.md)  
 → [Current status](RuneCompass/STATUS.md)
 
+### Celestial Dial
+
+**Read the sky. Know the day.**
+
+Celestial Dial is a compact Sól and Máni themed timekeeper designed to occupy the minimap footprint without becoming another permanent HUD panel. A small control near the map toggles between the normal minimap and the dial surface.
+
+Its product boundary is intentionally narrow:
+
+- show the current Valheim world day
+- show the player's current position within the full day/night cycle
+- present the cycle as a continuous celestial instrument rather than conventional clock time
+- keep Sól associated with the upper/day half and Máni with the lower/night half
+- support interchangeable presentation-only skins without changing semantics or gameplay behavior
+- remain read-only: no changing time, day length, weather, world state, saves, or server authority
+
+The initial concept uses a carved Norse dial with a warm daylight upper half, cool night lower half, dawn and dusk transition marks, a moving celestial indicator, and a centered day plate. The minimap itself should not be replaced internally; the implementation should own a separate surface anchored to the same HUD region and toggle visibility cleanly.
+
+![Celestial Dial Sól and Máni concept](CelestialDial/Assets/Concept/celestial-dial-sol-mani-concept.jpg)
+
+The visual system is explicitly modular so skins can replace the outer frame, day/night treatment, markers, pointer, center plate, and toggle glyph without forking the timekeeping logic.
+
+→ [Celestial Dial documentation](CelestialDial/README.md)  
+→ [Implementation plan](CelestialDial/IMPLEMENTATION_PLAN.md)  
+→ [Current status](CelestialDial/STATUS.md)  
+→ [Skin contract](CelestialDial/Assets/Skins/README.md)
+
 ### Pied Piper
 
 Pied Piper is the third resident mod. Its entire job is to make eligible tamed creatures obey one consistent **Follow / Stay** command without turning into a general pet-management framework.
@@ -246,6 +275,16 @@ WulfPack-mods/
 │   ├── STATUS.md
 │   └── Assets/
 │       └── Skins/
+├── CelestialDial/
+│   ├── README.md
+│   ├── IMPLEMENTATION_PLAN.md
+│   ├── STATUS.md
+│   ├── manifest.json
+│   └── Assets/
+│       ├── Concept/
+│       │   └── celestial-dial-sol-mani-concept.jpg
+│       └── Skins/
+│           └── README.md
 ├── PiedPiper/
 │   ├── README.md
 │   ├── IMPLEMENTATION_PLAN.md
@@ -286,7 +325,7 @@ That boundary is deliberate. Features that belong outside the game should not be
 - Treat multiplayer synchronization, server authority, and world persistence as explicit complexity boundaries.
 - Prefer native Valheim UI and behavior where practical.
 - Keep every mod independently removable without damaging a vanilla character or world whenever possible.
-- Keep presentation systems separate from gameplay logic. Rune Compass skins are the first explicit example.
+- Keep presentation systems separate from gameplay logic. Rune Compass and Celestial Dial both use presentation-only skin contracts.
 - Prefer native game behavior over replacement systems. Pied Piper should adapt Valheim's tame/follow machinery rather than invent custom pathfinding unless proven necessary.
 - Treat installed Valheim assemblies as authoritative. Historical mod source is reference material, not a contract.
 - Document verified behavior separately from implementation assumptions.
@@ -331,6 +370,7 @@ Add the new mod to the table in [Current mods](#current-mods), then keep its det
 
 - **Rested Whispers:** ✅ implemented, tested, validated, and accepted.
 - **Rune Compass:** 🧪 first playable implementation is in the repository; local compile and in-game validation remain tracked in issue #4.
+- **Celestial Dial:** 🎨 repository framework, Sól and Máni concept art, and presentation-only skin contract are established; authoritative Valheim 1.0 time-source discovery is next.
 - **Pied Piper:** 🧱 repository mesh is established; authoritative Valheim tame/follow API discovery is the next gate in issue #6.
 - **Vidar Shrugged:** 🧪 Gate 0 foundation is merged on `main`; compile and in-game baseline validation remain tracked in issue #10.
 - **GitHub Actions:** prohibited. Zero runs expected.
