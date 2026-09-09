@@ -47,14 +47,26 @@ function Assert-Manifest {
     if ([string]::IsNullOrWhiteSpace([string]$manifest.description)) {
         throw "manifest description must not be empty."
     }
-    if (-not ([Uri]::TryCreate([string]$manifest.website_url, [UriKind]::Absolute, [ref]([Uri]$null)))) {
-        throw "manifest website_url is not an absolute URL."
+
+    try {
+        $website = [Uri]([string]$manifest.website_url)
     }
-    if (@($manifest.dependencies).Count -eq 0) {
+    catch {
+        throw "manifest website_url is not a valid URL."
+    }
+    if (-not $website.IsAbsoluteUri -or $website.Scheme -notin @("http", "https")) {
+        throw "manifest website_url must be an absolute HTTP(S) URL."
+    }
+
+    $dependencies = @($manifest.dependencies)
+    if ($dependencies.Count -eq 0) {
         throw "manifest dependencies must include BepInExPack Valheim."
     }
-    if (-not (@($manifest.dependencies) -match '^denikson-BepInExPack_Valheim-')) {
-        throw "manifest dependencies do not include denikson-BepInExPack_Valheim."
+    $hasBepInEx = $dependencies | Where-Object {
+        [string]$_ -match '^denikson-BepInExPack_Valheim-\d+\.\d+\.\d+$'
+    }
+    if (-not $hasBepInEx) {
+        throw "manifest dependencies do not include a valid denikson-BepInExPack_Valheim dependency string."
     }
 
     return $manifest
@@ -149,7 +161,7 @@ $expected = @(
     "plugins/PiedPiper/PiedPiper.dll"
 )
 $actual = Get-ChildItem -LiteralPath $stage -Recurse -File | ForEach-Object {
-    $_.FullName.Substring($stage.Length).TrimStart('\', '/').Replace('\', '/')
+    $_.FullName.Substring($stage.Length).TrimStart([char[]]@('\', '/')).Replace('\', '/')
 } | Sort-Object
 
 $missing = @($expected | Where-Object { $_ -notin $actual })
