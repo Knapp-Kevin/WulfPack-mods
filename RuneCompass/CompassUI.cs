@@ -8,14 +8,14 @@ namespace WulfPack.RuneCompass;
 /// The north-up compass HUD.
 /// </summary>
 /// <remarks>
-/// North is fixed at 12 o'clock. The card never moves; the indicators do. A rim marker
-/// travels to the bearing the player is facing, and the wind pointer travels to the
-/// bearing the wind is blowing toward.
+/// North is fixed at 12 o'clock. The card never moves; the indicators do. A prominent
+/// centre needle travels to the bearing the player is facing, and the wind pointer travels
+/// to the bearing the wind is blowing toward.
 ///
 /// That makes every rotation absolute: each indicator is handed a world bearing and
 /// rendered at <see cref="Bearing.BearingRotationZ"/>, with nothing needing to know where
-/// the player is looking. Heading and wind are told apart by place and shape rather than
-/// colour alone — the heading marker rides the rim, the wind pointer sits at the centre.
+/// the player is looking. Heading and wind are told apart by visual mass and shape rather
+/// than colour alone: the solid heading needle dominates the slimmer wind pointer.
 ///
 /// Which layers move is not a skin's choice. A skin supplies artwork and a resting scale.
 /// </remarks>
@@ -71,8 +71,8 @@ internal sealed class CompassUI : IDisposable
 
     /// <summary>
     /// Populates the fixed card and returns the marker that travels to the player's
-    /// bearing. A skin supplies the ring artwork; without one, primitive glyphs stand in.
-    /// The needle itself is drawn by the mod so heading always reads the same way.
+    /// bearing. A skin supplies the ring and heading artwork; primitive geometry remains
+    /// the safe fallback when either the skin or its optional heading texture is absent.
     /// </summary>
     private RectTransform BuildCard(CompassSkin? skin, bool skinned, Font font)
     {
@@ -85,8 +85,10 @@ internal sealed class CompassUI : IDisposable
             CompassUiFactory.CreateSkinLayer("SkinRing", _dial, skin!.Ring!);
         }
 
-        // The needle is drawn last so it sits above the card and the wind spear.
-        return CompassUiFactory.CreateHeadingNeedle(_panel);
+        // Heading is drawn last so its stronger silhouette sits above the wind signal.
+        return skinned && skin!.HeadingPointer != null
+            ? CompassUiFactory.CreateSkinLayer("HeadingPointer", _panel, skin.HeadingPointer)
+            : CompassUiFactory.CreateHeadingNeedle(_panel);
     }
 
     private static CanvasGroup CreateCanvasGroup(GameObject root)

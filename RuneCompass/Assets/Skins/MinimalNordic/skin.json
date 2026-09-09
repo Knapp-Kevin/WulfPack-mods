@@ -3,13 +3,15 @@
   "description": "A compact low-ornament compass card with a restrained teal wind spear.",
   "baseTexture": "base.png",
   "ringTexture": "ring.png",
+  "headingPointerTexture": "heading_pointer.png",
   "windPointerTexture": "wind_pointer.png",
   "lubberMarkerTexture": "lubber_marker.png",
   "defaultScale": 0.7,
-  "notes": "All layers use a centered 512 x 512 RGBA canvas. This fallback favors silhouette and cardinal readability over surface detail.",
+  "notes": "All layers use a centered 512 x 512 RGBA canvas. This fallback favors silhouette and cardinal readability; the solid gold heading needle clearly outweighs the thin teal wind spear.",
   "orientationConventions": {
-    "ring": "North is at 12 o'clock in the source texture. Apply heading only to the rose transform.",
-    "windPointer": "The teal spear tip points to 12 o'clock at world bearing 0. Its circular pivot is centered at (0.5, 0.5); mount it on the rose and apply pure world bearing.",
-    "lubberMarker": "Static screen-space layer. The downward point is baked at 12 o'clock and marks the player's facing."
+    "ring": "Static north-up card. North is baked at 12 o'clock.",
+    "headingPointer": "The broad muted-gold tip points to 12 o'clock at heading 0. Its boss is centered at (0.5, 0.5); rotate it by pure player world bearing.",
+    "windPointer": "The thin teal spear tip points to 12 o'clock at wind bearing 0. Its pivot is centered at (0.5, 0.5); rotate it by pure wind-toward world bearing.",
+    "lubberMarker": "Optional static top accent for the north index. It does not replace the heading pointer."
   }
 }

@@ -20,6 +20,7 @@ internal sealed class SkinManifest
     public string name = string.Empty;
     public string baseTexture = string.Empty;
     public string ringTexture = string.Empty;
+    public string headingPointerTexture = string.Empty;
     public string windPointerTexture = string.Empty;
     public string lubberMarkerTexture = string.Empty;
     public float defaultScale = 1f;
@@ -30,9 +31,9 @@ internal sealed class SkinManifest
 /// </summary>
 /// <remarks>
 /// Presentation only. A skin supplies textures and a resting scale; it cannot change which
-/// layers rotate. The ring turns with the rose by <c>+heading</c>, the wind pointer carries
-/// a pure world bearing, and base and lubber marker are static — that is a behavioural
-/// invariant of the heading-up model, not a per-skin choice.
+/// layers rotate. Under north-up, the ring is static while the heading and wind pointers
+/// each carry an absolute world bearing. That is a behavioural invariant, not a per-skin
+/// choice.
 /// </remarks>
 internal sealed class CompassSkin
 {
@@ -40,6 +41,7 @@ internal sealed class CompassSkin
     public float DefaultScale = 1f;
     public Sprite? Base;
     public Sprite? Ring;
+    public Sprite? HeadingPointer;
     public Sprite? WindPointer;
     public Sprite? LubberMarker;
 
@@ -73,6 +75,7 @@ internal static class SkinLoader
                 DefaultScale = manifest.defaultScale > 0f ? manifest.defaultScale : 1f,
                 Base = LoadSprite(dir, manifest.baseTexture, log),
                 Ring = LoadSprite(dir, manifest.ringTexture, log),
+                HeadingPointer = LoadSprite(dir, manifest.headingPointerTexture, log),
                 WindPointer = LoadSprite(dir, manifest.windPointerTexture, log),
                 LubberMarker = LoadSprite(dir, manifest.lubberMarkerTexture, log),
             };
@@ -118,8 +121,8 @@ internal static class SkinLoader
             return null;
         }
 
-        // Pivot at the texture centre: every layer shares a centred 512x512 canvas, so the
-        // ring and wind pointer rotate about the same point the art was drawn around.
+        // Pivot at the texture centre: every layer shares a centred 512x512 canvas, so both
+        // pointers rotate about the same point the art was drawn around.
         return Sprite.Create(
             texture,
             new Rect(0f, 0f, texture.width, texture.height),

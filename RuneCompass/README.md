@@ -11,8 +11,8 @@ Its job is intentionally narrow: show orientation and wind direction without bec
 **North-up.** `N` is fixed at 12 o'clock and the card never moves. The indicators travel
 instead:
 
-- a **heading marker** rides the rim to the bearing you are facing;
-- a **wind pointer** sits at the centre and points where the wind is blowing.
+- a prominent **heading needle** points to the bearing you are facing;
+- a slimmer **wind pointer** points where the wind is blowing.
 
 That is how a compass is normally read: north is a fixed reference and you read your
 direction against it.
@@ -21,8 +21,9 @@ Because the card is pinned to world north, every rotation is **absolute**. Each 
 is handed a world bearing and rendered at `z = -bearing` through a single mapping — nothing
 needs to know where the player is looking. Adding an indicator means handing it a bearing.
 
-Heading and wind are told apart by place and shape, not colour alone: the heading marker
-rides the rim, the wind pointer sits at the centre with a feather-spear silhouette.
+Heading and wind are told apart by mass, shape, and layer order, not colour alone. The
+solid warm-metal heading needle is broader and renders above the slimmer feather-spear
+wind pointer.
 
 > An earlier revision used a heading-up card that rotated under a fixed marker. It was
 > replaced after seeing it on real artwork: the cardinal glyphs are baked into the ring, so
@@ -58,7 +59,7 @@ keyboard and are listed in [STATUS.md](STATUS.md); issue #4 stays open until the
 
 Implemented now:
 
-- north-up orientation: fixed card, rim heading marker, centre wind pointer
+- north-up orientation: fixed card, prominent heading needle, secondary wind pointer
 - camera-based heading, using Valheim's own `Atan2(x, z)` bearing convention
 - No Map-aware visibility through `Game.m_noMap`
 - live wind direction from `EnvMan.GetWindDir()`, bound at compile time
@@ -70,8 +71,9 @@ Implemented now:
 - no save or world-state mutation
 - zero GitHub Actions
 
-The HUD is still deliberately plain. It exists to prove mechanics before skin assets are
-bound, and the mechanics are now proven.
+ClassicWood is bound, and all six prepared skins now include a dedicated heading texture.
+The new heading art still needs the local rebuild and in-game visual acceptance recorded
+in [STATUS.md](STATUS.md).
 
 ## Local build and install
 
@@ -122,29 +124,31 @@ Heading and wind calculations remain separate in code even though both drive dir
 
 Skins control presentation only. They must not change gameplay behavior.
 
-Under heading-up, the **card-bearing ring is the rotating layer** — it is mounted on the
-rose and turns with it. The base plate, the lubber marker and the readouts are static. A
-skin chooses artwork for those layers; it never chooses which of them rotate.
+Under north-up, the card and base are static. The heading and wind pointers each rotate to
+an absolute world bearing. A skin chooses artwork for those roles; it never chooses their
+motion semantics.
 
 A skin may eventually define:
 
 - `base.png` — static back plate
-- `ring.png` — the rotating card carrying the cardinal marks
-- optional `ring_marks.png` — cardinal glyphs, if not baked into the ring
-- `wind_pointer.png` — mounted on the card, carries a pure world bearing
-- optional `north_marker.png` — mounted on the card at bearing 0
-- a static lubber marker for "you are looking this way"
+- `ring.png` — static north-up card carrying navigation marks
+- `heading_pointer.png` — primary indicator, rotates to player heading
+- `wind_pointer.png` — secondary indicator, rotates to wind-toward bearing
+- optional `lubber_marker.png` — static accent at the north index
 - pivot metadata and visual offsets
 - default visual scale or opacity where needed for alignment
 
-There is deliberately **no rotating heading pointer**: under heading-up your facing is
-always screen-up, so the lubber marker is static and the card moves instead.
+Both pointer textures share an exact centre pivot. Heading renders after wind and uses a
+broader, warmer, more opaque silhouette so player direction remains primary.
 
-Planned initial skin families:
+Prepared skin families:
 
 1. **Classic Wood**: carved wooden face, restrained metal framing, simple pointer.
 2. **Rune Ring**: darker runic ring treatment with stronger Norse ornament.
 3. **Minimal Nordic**: compact, highly readable treatment for players who want less HUD weight.
+4. **Knotwork Wood**: carved timber and aged brass with a blue-steel feather wind pointer.
+5. **Black Iron**: dark timber and riveted iron with restrained copper accents.
+6. **Gilded Sigil**: ornate amber runes over a subdued open-work sigil.
 
 Existing compass concept art should be curated into these roles rather than copied wholesale into every skin.
 
@@ -157,7 +161,8 @@ RuneCompass/
 ├── CompassUI.cs            runtime UI state, rotation, readouts, disposal
 ├── CompassUiFactory.cs     primitive Unity UI construction
 ├── HudAnchor.cs            screen-corner anchoring
-├── Bearing.cs              angle math + the two UI rotation mappings
+├── Bearing.cs              angle math + the absolute bearing mapping
+├── CompassSkin.cs          skin manifest, texture loading, safe fallback
 ├── HeadingProvider.cs      camera forward -> world bearing
 ├── WindProvider.cs         EnvMan.GetWindDir() -> world bearing
 ├── RuneCompass.csproj
@@ -172,7 +177,8 @@ RuneCompass/
     └── Skins/
 ```
 
-`SkinDefinition` and `SkinLoader` are intentionally not implemented yet. The working compass behavior should earn the abstraction before it is introduced.
+The loader treats heading art as optional and falls back to the primitive heading needle
+if a third-party skin has not adopted `headingPointerTexture` yet.
 
 ## Validation
 

@@ -1,0 +1,17 @@
+{
+  "name": "Gilded Sigil",
+  "description": "An ornate amber runic ring over a subdued open-work mystic sigil.",
+  "baseTexture": "base.png",
+  "ringTexture": "ring.png",
+  "headingPointerTexture": "heading_pointer.png",
+  "windPointerTexture": "wind_pointer.png",
+  "lubberMarkerTexture": "lubber_marker.png",
+  "defaultScale": 0.74,
+  "notes": "All layers use a centered 512 x 512 RGBA canvas. Decorative runes carry no gameplay meaning and the letterless fixed ring expects runtime cardinal glyphs. The bright heading needle dominates the feathered wind pointer.",
+  "orientationConventions": {
+    "ring": "Static north-up card. The crowned runic north index is at 12 o'clock.",
+    "headingPointer": "The broad bright-gold tip points to 12 o'clock at heading 0. Its boss is centered at (0.5, 0.5); rotate it by pure player world bearing.",
+    "windPointer": "The slimmer blue feather-spear tip points to 12 o'clock at wind bearing 0. Its boss is centered at (0.5, 0.5); rotate it by pure wind-toward world bearing.",
+    "lubberMarker": "Optional static top accent for the north index. It does not replace the heading pointer."
+  }
+}
