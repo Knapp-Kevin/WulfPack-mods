@@ -69,16 +69,7 @@ internal static class SkinLoader
             }
 
             SkinManifest manifest = JsonUtility.FromJson<SkinManifest>(File.ReadAllText(manifestPath));
-            CompassSkin skin = new()
-            {
-                Name = string.IsNullOrEmpty(manifest.name) ? skinName : manifest.name,
-                DefaultScale = manifest.defaultScale > 0f ? manifest.defaultScale : 1f,
-                Base = LoadSprite(dir, manifest.baseTexture, log),
-                Ring = LoadSprite(dir, manifest.ringTexture, log),
-                HeadingPointer = LoadSprite(dir, manifest.headingPointerTexture, log),
-                WindPointer = LoadSprite(dir, manifest.windPointerTexture, log),
-                LubberMarker = LoadSprite(dir, manifest.lubberMarkerTexture, log),
-            };
+            CompassSkin skin = Build(manifest, dir, skinName, log);
 
             if (!skin.IsUsable)
             {
@@ -94,6 +85,25 @@ internal static class SkinLoader
             log.LogWarning($"Rune Compass could not load skin '{skinName}': {ex.GetType().Name}: {ex.Message}");
             return null;
         }
+    }
+
+    /// <summary>
+    /// Maps a parsed manifest onto loaded sprites. Split out so <see cref="Load"/> stays
+    /// inside the Section 4 line limit as skins gain layers — it was one line short of the
+    /// cap when the heading pointer was added.
+    /// </summary>
+    private static CompassSkin Build(SkinManifest manifest, string dir, string skinName, ManualLogSource log)
+    {
+        return new CompassSkin
+        {
+            Name = string.IsNullOrEmpty(manifest.name) ? skinName : manifest.name,
+            DefaultScale = manifest.defaultScale > 0f ? manifest.defaultScale : 1f,
+            Base = LoadSprite(dir, manifest.baseTexture, log),
+            Ring = LoadSprite(dir, manifest.ringTexture, log),
+            HeadingPointer = LoadSprite(dir, manifest.headingPointerTexture, log),
+            WindPointer = LoadSprite(dir, manifest.windPointerTexture, log),
+            LubberMarker = LoadSprite(dir, manifest.lubberMarkerTexture, log),
+        };
     }
 
     private static Sprite? LoadSprite(string dir, string fileName, ManualLogSource log)
