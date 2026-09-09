@@ -2,14 +2,14 @@
 
 **Read the sky. Know the day.**
 
-Celestial Dial is a focused Valheim HUD mod concept that turns the minimap region into a toggleable Sól and Máni timekeeper. It answers exactly two questions:
+Celestial Dial is a focused Valheim HUD mod that turns the minimap region into a toggleable Sól and Máni timekeeper. It answers exactly two questions:
 
 1. What world day is it?
 2. Where are we in the current day/night cycle?
 
 It does not translate Valheim into conventional clock time. The instrument represents the world's own continuous cycle from dawn through day, dusk, night, and back to dawn.
 
-See [CONCEPT.md](CONCEPT.md) for the visual/product contract and corrected concept art. Concept art is intentionally kept out of this implementation-facing README so it cannot be mistaken for runtime evidence.
+See [CONCEPT.md](CONCEPT.md) for the visual/product contract and concept art. Concept art is intentionally kept out of this implementation-facing README so it cannot be mistaken for runtime evidence.
 
 ## Product boundary
 
@@ -38,13 +38,30 @@ Celestial Dial should not:
 
 ## Core interaction
 
-Where maps are available, the minimap remains the normal state. A small circular control near its upper-right edge toggles the Celestial Dial surface.
+Where maps are available, the minimap remains the normal state. A small circular control near its upper-right edge will toggle the Celestial Dial surface.
 
-The implementation should own a separate UI surface anchored over the minimap region rather than modifying minimap internals. The map can remain intact underneath and simply be hidden by presentation state.
+The implementation owns a separate UI surface rather than modifying minimap internals. The map/dial visibility switch and Rune Compass interop belong to the persistent-toggle tranche and are not yet claimed complete.
 
-In No Map play the map surface may be absent, but the toggle remains its own HUD control so the player can still open the Celestial Dial.
+In No Map play the map surface may be absent, but the final toggle remains its own HUD control so the player can still open the Celestial Dial.
 
-A short flip or crossfade is appropriate if it remains responsive and does not obscure gameplay.
+## Primitive runtime proof
+
+A first runtime candidate now exists in the repository.
+
+It contains:
+
+- a BepInEx plugin/project boundary;
+- local build/install/disable/enable/status/uninstall tooling;
+- a fail-closed `ValheimTimeSource` that resolves the historical `EnvMan.GetCurrentDay()` and `m_smoothDayFraction` candidates through reflection;
+- a primitive circular HUD with fixed Sól/day and Máni/night regions;
+- a center `DAY N` readout;
+- a moving perimeter marker driven by the normalized cycle fraction.
+
+The primitive maps the historical normalized fraction so `0.5` is the top of the dial, `0.0/1.0` is the bottom, `0.25` is the left transition, and `0.75` is the right transition. That visual mapping is a candidate until the installed Valheim 1.0 values are observed in-game.
+
+The runtime intentionally fails closed. If either candidate time member is absent, returns the wrong type, throws, or produces a non-normalized fraction, the dial remains hidden and logs one warning instead of guessing.
+
+**This candidate is not yet called playable.** It still requires compilation and in-game acceptance against the installed Valheim 1.0 build.
 
 ## Dial semantics
 
@@ -77,19 +94,40 @@ Initial families:
 
 These are four presentations of one semantic dial, not four implementations.
 
+## Local build and discovery
+
+From the repository root:
+
+```powershell
+.\CelestialDial\discover-time-api.ps1 -OutFile ".\celestial-dial-api-discovery.txt"
+.\CelestialDial\build-local.ps1
+.\CelestialDial\build-local.ps1 -Install
+.\CelestialDial\build-local.ps1 -Status
+```
+
+Lifecycle commands:
+
+```powershell
+.\CelestialDial\build-local.ps1 -Disable
+.\CelestialDial\build-local.ps1 -Enable
+.\CelestialDial\build-local.ps1 -Uninstall
+```
+
+The discovery report and live game remain the authority for accepting the candidate time seam.
+
 ## Technical posture
 
-Celestial Dial is intended to remain in the repository's **read-only** risk tier. Implementation must establish authoritative Valheim 1.0 sources for:
+Celestial Dial remains in the repository's **read-only** risk tier. Implementation must establish authoritative Valheim 1.0 behavior for:
 
 - current world day;
 - normalized position in the current day/night cycle;
 - HUD/minimap anchoring and lifecycle;
 - persistent toggle behavior in both map and No Map play.
 
-Historical mod source may inform discovery, but installed Valheim 1.0 assemblies are the contract.
+Historical mod source may inform discovery, but installed Valheim 1.0 assemblies and live behavior are the contract.
 
 ## Current state
 
-The product boundary, concept hierarchy, and skin component contract are established. Gameplay implementation has not started, and no runtime screenshot is claimed.
+The first runtime proof candidate is implemented in-repository but not yet locally compiled or accepted in-game. The persistent minimap/Rune Compass toggle and presentation skins remain follow-on work.
 
 See [STATUS.md](STATUS.md) for the working state and [CONCEPT.md](CONCEPT.md) for intended visuals.
