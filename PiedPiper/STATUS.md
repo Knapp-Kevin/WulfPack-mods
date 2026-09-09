@@ -1,55 +1,97 @@
 # Pied Piper status
 
-## Current status
+## Current state
 
-**Phase 1 implementation candidate written. Local compile and in-game validation remain.**
+Rebased onto current `main`, compiles clean against the shipped **Valheim 1.0** assemblies,
+loads with its Harmony patches applied and no exceptions, and passes lifecycle containment.
 
-Public decompiled Valheim source shows that `Tameable` already owns the native `Command` RPC and follow-target machinery. Pied Piper now exposes that native commandable path to tameables and uses Valheim's existing Use / interact action, **E by default**, just like vanilla wolf commands.
+**Not yet exercised in play.** Nobody has pressed E on a tamed creature with this installed.
+The command path is verified by static analysis of the game's own code, not by observation.
 
-## Implemented candidate
+Tier: **state-touching** (see the root README risk-tier table).
 
-- BepInEx plugin entry point.
-- Harmony patch on `Tameable.Awake` enabling `m_commandable`.
-- Native Valheim Use / interact input is the command input. No second Pied Piper keybind exists.
-- Existing vanilla Follow / Stay behavior remains the command implementation.
-- Wild / untamed creatures remain gated by vanilla `Tameable.Interact` behavior.
-- Generic saddle guard suppresses Follow / Stay switching while a rideable tameable has an attached saddle.
-- Saddle-state uncertainty fails closed for rideables.
-- Local build / install / disable / enable / status / uninstall helper.
-- No custom AI or pathfinding.
-- No save/world schema.
-- Zero GitHub Actions.
+## Environment
 
-## Why the implementation is this small
+| Fact | Value |
+|---|---|
+| Valheim | **1.0** |
+| Unity | 6000.0.61f1 |
+| BepInEx | 5.4.22.0 / BepInExPack Valheim 5.4.2202 |
 
-The current public `Tameable` contract contains `m_commandable`, the `Command` RPC, native interaction handling, `MonsterAI` follow behavior behind that command, and saddle state. Pied Piper's job is therefore to expose existing behavior rather than reimplement it.
+## What the patches do
 
-## Local validation gate
+| Patch | Effect |
+|---|---|
+| `Tameable.Awake` postfix | sets `m_commandable = true` on every `Tameable` |
+| `Tameable.Interact` prefix/postfix | temporarily forces `m_commandable = false` for saddled rideables, restores it afterwards |
 
-Run:
+The rideable guard fails closed: if `HaveSaddle` cannot be resolved by reflection, or the
+invocation throws, commanding is suppressed rather than allowed.
 
-```powershell
-.\PiedPiper\build-local.ps1
-.\PiedPiper\build-local.ps1 -Install
-```
+## Save-state analysis
 
-Then verify:
+The state-touching tier exists to answer one question: can this reach the save? Verified
+against the installed `assembly_valheim.dll` with Mono.Cecil rather than assumed.
 
-1. current installed assemblies compile with the Harmony and `Tameable` contracts used here;
-2. plugin loads with no BepInEx / Harmony errors;
-3. vanilla wolf Follow / Stay still works with Use / E;
-4. tamed boar gains Follow / Stay with Use / E;
-5. tamed hen/chicken gains Follow / Stay with Use / E;
-6. unsaddled lox gains Follow / Stay;
-7. unsaddled asksvin gains Follow / Stay;
-8. saddled rideables do not switch into Follow;
-9. wild / untamed creatures remain unaffected;
-10. alternate rename interaction remains available;
-11. disable / enable works after restart;
-12. uninstall restores vanilla behavior and leaves other plugins untouched.
+**The patch itself persists nothing.**
 
-## Current boundary
+- `Tameable.m_commandable` is a plain public instance `Boolean`.
+- It is **read by exactly one method** (`Tameable.Interact`) and **written by no game code**.
+- **No method in `Tameable` references `m_commandable` and a `ZDO` together.**
 
-Do not claim Pied Piper is playable or validated until the local compile and game pass succeeds. If current Valheim has changed `Tameable`, saddle state, Harmony method signatures, or the command path, correct the implementation against the installed assemblies rather than preserving this candidate for its own sake.
+It is a prefab-authored field re-applied on every `Awake`, so removing the mod restores
+vanilla behaviour the next time the component wakes. Nothing survives the session.
 
-Issue #6 remains the authoritative implementation and validation tracker.
+**But it unlocks a vanilla path that does persist.** `Tameable.Command` invokes
+`RPC_Command`, which calls `ZDO::Set(int, string)` and `BaseAI::SetPatrolPoint()`, and
+`SetPatrolPoint` / `ResetPatrolPoint` / `GetPatrolPoint` all read or write the ZDO.
+
+So telling a creature to **stay** writes a patrol point into world state, through the game's
+own mechanism, on a creature vanilla would not have let you command.
+
+### Uninstall hazard
+
+This is the one thing that could outlive the mod.
+
+A creature left on **stay** keeps its ZDO patrol point after Pied Piper is removed. Its
+`m_commandable` reverts to the prefab value, so it can no longer be commanded — and it
+cannot be told to follow again, because that is the very interaction the mod was providing.
+The creature stays anchored to its patrol point permanently.
+
+**Recovery exists while the mod is installed**: commanding a creature back to *follow* calls
+`ResetPatrolPoint`, clearing the ZDO value. The safe removal procedure is therefore:
+
+1. Command every Pied-Piper-commanded creature back to **follow**.
+2. Then `.\PiedPiper\build-local.ps1 -Uninstall`.
+
+This belongs in the README before release, and is the main reason this mod is not
+`read-only`.
+
+## Validated
+
+| Check | Result |
+|---|---|
+| `build-local.ps1` | clean, 0 warnings / 0 errors |
+| `-Install` / `-Status` | clean, no PowerShell errors |
+| BepInEx load | clean, 5 plugins, zero Pied Piper exceptions |
+| Harmony patch application | both targets resolve on Valheim 1.0 — `PatchAll` would throw otherwise |
+| Lifecycle containment | disable / enable / uninstall, SHA-256 diff: **105 save files, all sibling plugin and config files byte-identical** |
+
+## Defect fixed during validation
+
+`build-local.ps1:127` used `Write-Host "$Label: $To"`. PowerShell reads `$Label:` as a
+drive-qualified variable, so the script failed at **parse** time in every mode — build,
+install, status, disable, enable and uninstall. It had never been run.
+
+The same defect exists in Rune Compass at the same line, because the script was copied from
+there. `RestedWhispers` and `VidarShrugged` carry the correct form.
+
+## Not yet done
+
+- **No in-play verification.** Pressing E on a tamed creature, confirming Follow/Stay
+  toggles, and confirming a saddled rideable is still ridden rather than commanded.
+- **No save-integrity diff across a play session with the patches live.** That is the gate
+  this tier requires, and it needs someone to play with tamed creatures present. The
+  install/uninstall diff above does not substitute for it: it proves the files are clean,
+  not that a session with active patches leaves the world unchanged.
+- The uninstall hazard above is analysed, not observed.
