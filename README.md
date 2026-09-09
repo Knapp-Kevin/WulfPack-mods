@@ -11,8 +11,8 @@ WulfPack Mods is the in-game modding side of the broader WulfPack Valheim projec
 | Mod | Purpose | Current state | Documentation |
 | --- | --- | --- | --- |
 | **Rested Whispers** | Native Valheim warnings as the Rested effect fades. | ✅ Implemented, tested, validated | [README](RestedWhispers/README.md) · [Concept](RestedWhispers/CONCEPT.md) |
-| **Rune Compass** | Immersive No Map navigation with north-up heading, camera view, wind, and storm interference. | 🧪 Runtime behavior accepted; nine skin art assets remain | [README](RuneCompass/README.md) · [Concept](RuneCompass/CONCEPT.md) · [Asset index](RuneCompass/Assets/Skins/ASSET_INDEX.md) · [Status](RuneCompass/STATUS.md) |
-| **Celestial Dial** | Toggleable Sól and Máni day-cycle instrument showing world day and position in Valheim's day/night cycle. | 🧪 Primitive runtime proof candidate implemented; local 1.0 validation pending | [README](CelestialDial/README.md) · [Concept](CelestialDial/CONCEPT.md) · [Asset index](CelestialDial/Assets/Skins/ASSET_INDEX.md) · [Status](CelestialDial/STATUS.md) |
+| **Rune Compass** | Immersive No Map navigation with north-up heading, camera view, wind, and storm interference. | 🧪 Runtime accepted; optional Celestial Dial interop candidate added; nine skin art assets remain | [README](RuneCompass/README.md) · [Concept](RuneCompass/CONCEPT.md) · [Asset index](RuneCompass/Assets/Skins/ASSET_INDEX.md) · [Status](RuneCompass/STATUS.md) |
+| **Celestial Dial** | Toggleable Sól and Máni day-cycle instrument showing world day and position in Valheim's day/night cycle. | 🧪 Primitive runtime and persistent-toggle candidates implemented; local 1.0 validation pending | [README](CelestialDial/README.md) · [Concept](CelestialDial/CONCEPT.md) · [Asset index](CelestialDial/Assets/Skins/ASSET_INDEX.md) · [Status](CelestialDial/STATUS.md) |
 | **Pied Piper** | Native Follow / Stay interaction for eligible tamed creatures. | ✅ Functionally complete and operator-validated; release icon/packaging remains | [README](PiedPiper/README.md) · [Concept](PiedPiper/CONCEPT.md) · [Status](PiedPiper/STATUS.md) |
 | **Vidar Shrugged** | Large-settlement performance instrumentation and optimization. | 🧪 Gate 0 foundation merged; later optimization gates remain | [README](VidarShrugged/README.md) · [Concept](VidarShrugged/CONCEPT.md) · [Implementation plan](VidarShrugged/IMPLEMENTATION_PLAN.md) · [Benchmark plan](VidarShrugged/BENCHMARK_PLAN.md) · [Status](VidarShrugged/STATUS.md) |
 
@@ -41,13 +41,13 @@ What a mod is allowed to touch decides how hard it has to be validated.
 | --- | --- | --- | --- |
 | **Rested Whispers** | read-only | reads status effects, shows native messages | build, load, lifecycle containment |
 | **Rune Compass** | read-only | reads heading, facing, wind, weather/biome state; draws HUD | build, load, lifecycle containment |
-| **Celestial Dial** | read-only | reads world day and day/night-cycle position; draws toggleable HUD | build, load, lifecycle containment |
+| **Celestial Dial** | read-only | reads world day/day-night position; changes owned/vanilla HUD visibility while selected | build, load, lifecycle containment, UI restoration |
 | **Vidar Shrugged** | read-only | Gate 0 reads frame timings and scene population | build, load, lifecycle containment |
 | **Pied Piper** | state-touching | patches `Tameable`; unlocks native commands that can write patrol state | build, load, lifecycle containment, **plus a save-integrity diff across a play session with the patches live** |
 
 ### Tier definitions
 
-- **read-only** — observes game state and may draw UI. No Harmony mutation path, save writes, or world-state writes in the declared slice.
+- **read-only** — observes game state and may draw or temporarily change presentation visibility. No gameplay mutation, save writes, world writes, map-data writes, or persistent state owned by the mod.
 - **state-touching** — patches or mutates live game objects during a session. Validation must account for what can happen while the mod runs.
 - **persistent** — directly owns writes to save, world, or ZDO state that survive the session. No current mod is declared in this tier.
 
@@ -77,7 +77,7 @@ Current state: complete and accepted.
 
 Rune Compass is a north-up No Map navigation instrument built around one rule: **direction, not hidden information**.
 
-Its current runtime hierarchy is:
+Its accepted runtime hierarchy is:
 
 - fixed north/cardinal card;
 - bold character-facing arrow;
@@ -85,14 +85,14 @@ Its current runtime hierarchy is:
 - small wind-source rune outside the rim;
 - storm interference that can capture the facing/camera indicators while the card stays fixed and wind remains truthful.
 
-All 13 current operator protocol rows pass. The remaining visual backlog is nine assets: `camera_wedge`, `character_arrow`, and `wind_gust` for Classic Wood, Rune Ring, and Minimal Nordic. The current loader falls back to primitive geometry when those optional textures are absent.
+All 13 current operator protocol rows for the existing compass behavior pass. The remaining visual backlog is nine assets: `camera_wedge`, `character_arrow`, and `wind_gust` for Classic Wood, Rune Ring, and Minimal Nordic. The current loader falls back to primitive geometry when those optional textures are absent.
 
-A persistent instrument toggle near the minimap region is a product requirement for future shared Rune Compass/Celestial Dial behavior. It must remain accessible in No Map play even when the minimap itself is absent; it is not yet claimed as implemented.
+Rune Compass now also exposes a tiny optional presentation-only bridge for Celestial Dial. The bridge can temporarily suppress the compass HUD without changing its configuration or gameplay behavior, then release it back to Rune Compass's normal visibility rules. This new interop path is implemented but not yet included in the historical operator acceptance.
 
 → [README](RuneCompass/README.md)  
 → [Concept](RuneCompass/CONCEPT.md)  
 → [Skin asset index](RuneCompass/Assets/Skins/ASSET_INDEX.md)  
-→ [Status](RuneCompass/STATUS.md)
+→ [Skin-art tracker #19](https://github.com/Knapp-Kevin/WulfPack-mods/issues/19)
 
 ## Celestial Dial
 
@@ -102,14 +102,15 @@ Celestial Dial is a Sól and Máni themed instrument that answers exactly two qu
 
 The concept and runtime evidence are deliberately separated. Corrected concept art lives only on the mod's concept page. The README does not embed it as if it were a screenshot.
 
-A first read-only runtime proof candidate now exists. It includes the BepInEx project/plugin boundary, a fail-closed historical `EnvMan` time-source adapter, local lifecycle tooling, and a primitive circular dial with `DAY N`, Sól above, Máni below, dawn/dusk transitions, and a moving normalized-cycle marker.
+The repository now contains a primitive read-only runtime candidate plus a persistent instrument-toggle candidate. The toggle is its own top-right HUD object, so it can remain present when a No Map server has no minimap surface. In normal-map play the candidate conservatively hides and restores the small minimap root; with Rune Compass loaded it uses optional reflection interop to suppress and restore only the compass presentation.
 
-The candidate is deliberately not called playable yet. The repository-owned discovery probe and local build must be run against the installed Valheim 1.0 assemblies, then the day and cycle mapping must be observed in-game. The persistent minimap/Rune Compass toggle remains the next interaction tranche after that evidence is recorded.
+The candidate is deliberately not called playable yet. The repository-owned discovery probe and local build must be run against the installed Valheim 1.0 assemblies, the day/cycle mapping must be observed in-game, and the full toggle protocol must pass in normal-map and No Map play.
 
 → [README](CelestialDial/README.md)  
 → [Concept](CelestialDial/CONCEPT.md)  
 → [Skin asset index](CelestialDial/Assets/Skins/ASSET_INDEX.md)  
 → [Status](CelestialDial/STATUS.md)  
+→ [Toggle acceptance protocol](CelestialDial/TOGGLE_TEST.md)  
 → [Runtime tracker #20](https://github.com/Knapp-Kevin/WulfPack-mods/issues/20)
 
 ## Pied Piper
@@ -156,6 +157,9 @@ WulfPack-mods/
 │   ├── README.md
 │   └── CONCEPT.md
 ├── RuneCompass/
+│   ├── Plugin.cs
+│   ├── CompassController.cs
+│   ├── RuneCompassInterop.cs
 │   ├── README.md
 │   ├── CONCEPT.md
 │   ├── STATUS.md
@@ -164,10 +168,14 @@ WulfPack-mods/
 │   ├── Plugin.cs
 │   ├── DialController.cs
 │   ├── DialUI.cs
+│   ├── InstrumentToggleUI.cs
+│   ├── MinimapSurface.cs
+│   ├── RuneCompassBridge.cs
 │   ├── ValheimTimeSource.cs
 │   ├── CelestialDial.csproj
 │   ├── build-local.ps1
 │   ├── discover-time-api.ps1
+│   ├── TOGGLE_TEST.md
 │   ├── README.md
 │   ├── CONCEPT.md
 │   ├── STATUS.md
@@ -234,8 +242,8 @@ See [MOD_DOCUMENTATION_STANDARD.md](MOD_DOCUMENTATION_STANDARD.md) for the requi
 ## Status
 
 - **Rested Whispers:** ✅ implemented, tested, validated, accepted.
-- **Rune Compass:** 🧪 behavior accepted; nine skin assets remain before visual completion.
-- **Celestial Dial:** 🧪 primitive runtime proof candidate implemented; installed Valheim 1.0 compile/runtime acceptance pending.
+- **Rune Compass:** 🧪 established compass behavior accepted; optional Celestial Dial interop candidate awaits local acceptance; nine skin assets remain.
+- **Celestial Dial:** 🧪 primitive runtime and persistent-toggle candidates implemented; installed Valheim 1.0 compile/runtime acceptance pending.
 - **Pied Piper:** ✅ gameplay scope complete and operator-validated; release icon/packaging remains.
 - **Vidar Shrugged:** 🧪 Gate 0 foundation merged; later optimization gates remain.
 - **GitHub Actions:** prohibited. Zero runs expected.
