@@ -1,17 +1,17 @@
 {
   "name": "Rune Ring",
-  "description": "A darker forged-metal ring with restrained amber runic engraving.",
+  "description": "Black basalt, ember-cut runes, and a cold mystic wind signal.",
   "baseTexture": "base.png",
   "ringTexture": "ring.png",
   "headingPointerTexture": "heading_pointer.png",
   "windPointerTexture": "wind_pointer.png",
   "lubberMarkerTexture": "lubber_marker.png",
   "defaultScale": 0.76,
-  "notes": "All layers use a centered 512 x 512 RGBA canvas. Decorative runes carry no gameplay meaning. The dark-bronze heading needle remains visually dominant over the feathered wind pointer.",
+  "notes": "All layers use a centered 512 x 512 RGBA canvas. Cardinal letters are baked into the fixed ring; decorative runes carry no gameplay meaning. The ember rune-blade has 4.25x the opaque mass of the icy wind wisp.",
   "orientationConventions": {
-    "ring": "Static north-up card. North is baked at 12 o'clock.",
-    "headingPointer": "The broad dark-bronze tip points to 12 o'clock at heading 0. Its boss is centered at (0.5, 0.5); rotate it by pure player world bearing.",
-    "windPointer": "The slimmer feather-spear tip points to 12 o'clock at wind bearing 0. Its boss is centered at (0.5, 0.5); rotate it by pure wind-toward world bearing.",
+    "ring": "Static north-up basalt card. N and the crowned rune index are baked at 12 o'clock.",
+    "headingPointer": "The large ember rune-blade points to 12 o'clock at heading 0. Its boss is centered at (0.5, 0.5); rotate it by pure player world bearing.",
+    "windPointer": "The slim icy wisp points to 12 o'clock at wind bearing 0. Its boss is centered at (0.5, 0.5); rotate it by pure wind-toward world bearing.",
     "lubberMarker": "Optional static top accent for the north index. It does not replace the heading pointer."
   }
 }

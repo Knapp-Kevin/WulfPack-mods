@@ -143,12 +143,12 @@ broader, warmer, more opaque silhouette so player direction remains primary.
 
 Prepared skin families:
 
-1. **Classic Wood**: carved wooden face, restrained metal framing, simple pointer.
-2. **Rune Ring**: darker runic ring treatment with stronger Norse ornament.
-3. **Minimal Nordic**: compact, highly readable treatment for players who want less HUD weight.
-4. **Knotwork Wood**: carved timber and aged brass with a blue-steel feather wind pointer.
-5. **Black Iron**: dark timber and riveted iron with restrained copper accents.
-6. **Gilded Sigil**: ornate amber runes over a subdued open-work sigil.
+1. **Classic Wood**: dark oak, aged brass, a broad brass heading needle and feather wind.
+2. **Rune Ring**: black basalt, ember-cut runes, a bronze rune-blade and icy wind wisp.
+3. **Minimal Nordic**: negative space, a broken iron line, an ivory heading lozenge and hairline teal wind.
+4. **Knotwork Wood**: pale ash, braided iron and leather, an antler heading spear and blue-green feather wind.
+5. **Black Iron**: soot-dark hide, riveted forge iron, a bone heading spear and rust-copper wind vane.
+6. **Gilded Sigil**: an indigo mystic face, open-work gold, a ceremonial heading lance and cyan wind crescent.
 
 Existing compass concept art should be curated into these roles rather than copied wholesale into every skin.
 

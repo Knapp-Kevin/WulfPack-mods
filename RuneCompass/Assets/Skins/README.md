@@ -21,10 +21,10 @@ A skin supplies artwork for these roles. It never decides which of them rotate. 
 and wind each receive one absolute-bearing transform; that is a behavioural invariant,
 not a presentation choice.
 
-The heading pointer is intentionally the dominant indicator: warm, solid, 379 pixels tall
-on the shared authoring canvas, with a broad tip and central boss. Wind uses a slimmer
-feather, spear, or arrow silhouette and renders beneath heading. Shape, mass, layer order,
-and material distinguish the signals before colour does.
+The heading pointer is intentionally the dominant indicator. Wind uses a slimmer feather,
+wisp, vane, or hairline-arrow silhouette and renders beneath heading. Shape, mass, layer
+order, and material distinguish the signals before colour does. Across the prepared skins,
+heading carries 2.75x to 11.02x the opaque mass of wind.
 
 Prepared skins contain:
 
@@ -38,20 +38,20 @@ Prepared skins contain:
 └── skin.json
 ```
 
-Not every texture is mandatory. A skin definition declares only the layers it uses.
-The original three bundles retain baked cardinal art. The three follow-up bundles use
-letterless rings and therefore require runtime cardinal glyphs when they are bound.
+Not every texture is mandatory. A skin definition declares only the layers it uses. Every
+prepared ring includes baked cardinal art, so a skin can be bound without a second glyph
+system or a font dependency.
 
 ## Prepared families
 
 | Family | State | Visual language |
 |---|---|---|
 | `ClassicWood` | prepared, not yet bound | warm dark wood, aged brass, restrained cardinal ring |
-| `RuneRing` | prepared, not yet bound | darker forged metal, amber rune engraving |
-| `MinimalNordic` | prepared, not yet bound | compact fallback with minimal ornament and a teal wind spear |
-| `KnotworkWood` | prepared, not yet bound | deeply carved timber, bright aged brass, blue-steel feather spear |
-| `BlackIron` | prepared, not yet bound | dark timber, riveted iron, restrained copper wind arrow |
-| `GildedSigil` | prepared, not yet bound | ornate amber runes and a subdued open-work mystic sigil |
+| `RuneRing` | prepared, not yet bound | black basalt, ember runes, bronze rune-blade heading, icy wind wisp |
+| `MinimalNordic` | prepared, not yet bound | negative space, broken iron line, ivory lozenge heading, hairline teal wind |
+| `KnotworkWood` | prepared, not yet bound | pale ash, braided iron and leather, antler heading, blue-green feather wind |
+| `BlackIron` | prepared, not yet bound | soot-dark hide, riveted forge iron, bone spear heading, rust-copper wind vane |
+| `GildedSigil` | prepared, not yet bound | indigo mystic face, open-work gold, ceremonial heading lance, cyan wind crescent |
 
 Every prepared PNG is a centered `512 x 512` RGBA canvas. That shared canvas is the
 alignment contract: both pointers rotate around `(0.5, 0.5)`, while the base, ring, and

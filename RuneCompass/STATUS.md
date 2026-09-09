@@ -11,10 +11,31 @@ replaces in No Map play. Previously it sat top-centre.
 
 Issue #4 stays **open** until the operator acceptance items are recorded.
 
-All six prepared skins now include a dedicated `heading_pointer.png`. The heading needle
-is a broad warm-metal layer rendered above the slimmer wind pointer; measured opaque mass
-ranges from 1.50x to 3.89x the corresponding wind asset. Runtime loading is implemented on
-this branch, but the new art still requires the normal local rebuild and in-game review.
+All six prepared skins now include a dedicated `heading_pointer.png`. ClassicWood remains
+the grounded dark-oak and brass baseline. The other five families were rebuilt around
+different materials, silhouettes, negative space, and pointer languages instead of
+recolouring the same disc. Heading renders above wind and now measures 2.75x to 11.02x the
+corresponding wind asset's opaque mass in the rebuilt families. Runtime loading is
+implemented on this branch, but the replacement art still requires the normal local
+rebuild and in-game review.
+
+## Visual differentiation pass
+
+Recorded 2026-09-09. This pass changes assets and skin metadata only; bearing math and
+gameplay behaviour are untouched.
+
+| Family | Distinct construction | Primary heading | Secondary wind |
+|---|---|---|---|
+| `ClassicWood` | dark oak and aged brass | broad brass needle | dark feather-spear |
+| `RuneRing` | basalt and ember-cut runes | bronze rune-blade | icy wisp |
+| `MinimalNordic` | open centre and broken iron line | ivory lozenge with ochre north tip | hairline teal arrow |
+| `KnotworkWood` | pale ash, braided iron and leather | antler spear | blue-green feather |
+| `BlackIron` | soot-dark hide and riveted forge iron | bone spear | rust-copper vane |
+| `GildedSigil` | indigo face and open-work gold | violet-inlaid ceremonial lance | cyan crescent |
+
+Every replacement layer is a centred `512 x 512` RGBA PNG with transparent corners.
+Cardinal letters are baked into each fixed north-up ring. Visual review has been performed
+at the approximate shipped HUD size; local compile and in-game review remain pending.
 
 ## What is verified
 
