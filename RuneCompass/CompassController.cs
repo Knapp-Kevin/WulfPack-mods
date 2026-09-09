@@ -41,7 +41,10 @@ internal sealed class CompassController : IDisposable
             _settings.Scale(), _settings.Opacity(), _settings.Offset(), _settings.Anchor());
         _ui.SetReadoutsVisible(_settings.ShowReadouts());
         _ui.SetHeading(heading);
-        _ui.SetWind(_windProvider.TryGetWindTowardDegrees(out float wind) ? wind : null);
+        _ui.SetWind(
+            _windProvider.TryGetWindTowardDegrees(out float wind)
+                ? Bearing.Normalize(_settings.WindPointsToward() ? wind : wind + 180f)
+                : null);
     }
 
     /// <summary>

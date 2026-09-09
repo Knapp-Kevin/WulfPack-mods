@@ -26,6 +26,7 @@ internal sealed class CompassSettings
     public Func<Vector2> Offset = () => Vector2.zero;
     public Func<bool> ShowReadouts = () => false;
     public Func<float> HeadingOffset = () => 0f;
+    public Func<bool> WindPointsToward = () => true;
     public Func<string> SelectedSkin = () => "ClassicWood";
     public Func<string> SkinsRoot = () => string.Empty;
 }

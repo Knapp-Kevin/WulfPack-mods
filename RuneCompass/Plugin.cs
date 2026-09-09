@@ -26,6 +26,7 @@ public sealed class Plugin : BaseUnityPlugin
     private ConfigEntry<HudAnchor> _anchor = null!;
     private ConfigEntry<bool> _showReadouts = null!;
     private ConfigEntry<string> _selectedSkin = null!;
+    private ConfigEntry<bool> _windPointsToward = null!;
 
     private void Awake()
     {
@@ -45,6 +46,7 @@ public sealed class Plugin : BaseUnityPlugin
                 ShowReadouts = () => _showReadouts.Value,
                 HeadingOffset = () => _headingOffset.Value,
                 SelectedSkin = () => _selectedSkin.Value,
+                WindPointsToward = () => _windPointsToward.Value,
                 SkinsRoot = () => SkinsRoot,
             });
 
@@ -58,6 +60,14 @@ public sealed class Plugin : BaseUnityPlugin
     {
         BindGeneral();
         BindDisplay();
+        _windPointsToward = Config.Bind(
+            "Calibration",
+            "WindPointsToward",
+            true,
+            "true: the wind pointer shows the direction the wind blows TOWARD, matching "
+            + "smoke drift and sail push. false: the meteorological convention, showing the "
+            + "direction it comes FROM. Flip this and watch smoke from a fire to confirm "
+            + "which matches your world.");
         _headingOffset = Config.Bind(
             "Calibration",
             "HeadingOffsetDegrees",
