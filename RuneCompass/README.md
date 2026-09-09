@@ -8,27 +8,64 @@ Its job is intentionally narrow: show orientation and wind direction without bec
 
 ## Orientation model
 
-**North-up.** `N` is fixed at 12 o'clock and the card never moves. The indicators travel
-instead:
+**North-up.** `N` is fixed at 12 o'clock and the card rests there. The indicators travel
+instead, and they are ranked so the important one is obvious at a glance:
 
-- a **heading marker** rides the rim to the bearing you are facing;
-- a **wind pointer** sits at the centre and points where the wind is blowing.
+| Signal | Where it is | How loud |
+|---|---|---|
+| **Which way you are facing** | a bold arrow from the centre | the primary read — the boldest thing on the dial |
+| **North and south** | the card itself, behind everything | quiet background reference |
+| **Where the camera looks** | a faint sector behind the card | subtle; there when you want it, ignorable when you don't |
+| **Which way the wind blows** | a small rune orbiting *outside* the rim | about a third the arrow's size |
 
-That is how a compass is normally read: north is a fixed reference and you read your
-direction against it.
+Your **body's facing** and your **camera's view** are separate signals, because in Valheim
+they genuinely differ: stand still and swing the camera around and the arrow holds while
+the sector moves. That is the point — the arrow tells you where you will walk, the sector
+tells you where you are looking.
 
 Because the card is pinned to world north, every rotation is **absolute**. Each indicator
 is handed a world bearing and rendered at `z = -bearing` through a single mapping — nothing
 needs to know where the player is looking. Adding an indicator means handing it a bearing.
 
-Heading and wind are told apart by place and shape, not colour alone: the heading marker
-rides the rim, the wind pointer sits at the centre with a feather-spear silhouette.
+The four are told apart by place and size, never by colour alone: arrow at the centre,
+card behind, camera sector fainter still, wind outside the ring and small.
 
 > An earlier revision used a heading-up card that rotated under a fixed marker. It was
 > replaced after seeing it on real artwork: the cardinal glyphs are baked into the ring, so
 > a rotating card put `E` and `W` upside down on southerly headings, and a fixed north
 > reads more like a compass. North-up is also simpler — one mapping instead of two, and no
 > counter-rotation.
+
+## Storms
+
+A Valheim storm is bad weather for a compass, and Rune Compass behaves like an instrument
+that is suffering rather than one that has been switched off.
+
+During a storm the **card**, the **camera sector** and the **facing arrow** drift off true,
+wandering slowly rather than spinning or twitching. The card suffers most — it is the part
+a compass's magnetism actually lives in — and the facing arrow suffers least, so the compass
+degrades without becoming useless. Interference fades in as the storm builds and fades out
+as it passes; it never snaps.
+
+**The wind rune does not malfunction.** Wind is something you can see — driven rain, bent
+grass, a sail pulling — so it keeps telling the truth while the instrument struggles. The
+compass fails; the weather does not lie.
+
+Rune Compass tells you nothing new here. Interference only ever *removes* accuracy from a
+reading you already had, and it happens when you can already see the storm.
+
+### Which weather counts as a storm
+
+Valheim has no "is it storming" flag anywhere in its code — that was checked field by field,
+not assumed — so Rune Compass matches on the environment's name instead, which is what the
+game does internally. It ships knowing only about `ThunderStorm`, the one name that could be
+proven to exist.
+
+The rest are yours to add, and the mod hands you the list: **on your first world load it
+logs every environment your install actually has**, with each one's wind range, to the
+BepInEx log. Copy the stormy-looking ones into `StormEnvironments`.
+
+That is deliberate. A longer default list would have been guesswork dressed up as a feature.
 
 ## Configuration
 
@@ -49,6 +86,22 @@ watch the file, so changes take effect on the next launch.
 
 Anchoring to a corner rather than to absolute pixels keeps the compass in place across
 resolutions and aspect ratios.
+
+### `[Storm]`
+
+| Key | Default | What it does |
+|---|---|---|
+| `InterferenceEnabled` | `true` | Master switch. `false` keeps the compass accurate in every weather. |
+| `StormEnvironments` | `ThunderStorm` | Comma-separated environment names treated as storms. Extend from the environment list logged on your first world load. |
+| `MaxDeflectionDegrees` | `22` | How far a storm can push the compass off true. Clamped to 35 — past that the N/E/S/W marks baked into the card turn upside down. |
+| `InterferenceRampSeconds` | `4.0` | How long interference takes to arrive and to fade. Clamped to a minimum of 3; see below. |
+| `IndependentLayerInterference` | `true` | `true`: each disturbed layer wanders on its own. `false`: all three swing together. |
+
+> **Why the ramp has a floor.** Valheim switches the environment's name at the *start* of a
+> weather change, about two seconds before the sky visibly turns. A slow ramp keeps that
+> lead invisible. A fast one would make the compass react before the weather does, turning
+> it into a storm early-warning device — information you could not otherwise have. Raise
+> this value if interference ever arrives ahead of the sky; do not lower it.
 
 ## Current implementation
 

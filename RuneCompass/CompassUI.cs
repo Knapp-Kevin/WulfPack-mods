@@ -5,27 +5,50 @@ using UnityEngine.UI;
 namespace WulfPack.RuneCompass;
 
 /// <summary>
-/// The north-up compass HUD.
+/// The north-up compass HUD and its four directional signals.
 /// </summary>
 /// <remarks>
-/// North is fixed at 12 o'clock. The card never moves; the indicators do. A rim marker
-/// travels to the bearing the player is facing, and the wind pointer travels to the
-/// bearing the wind is blowing toward.
+/// North is the fixed reference. Every indicator is handed an absolute world bearing and
+/// rendered at <see cref="Bearing.BearingRotationZ"/>; nothing needs to know where the
+/// player is looking.
 ///
-/// That makes every rotation absolute: each indicator is handed a world bearing and
-/// rendered at <see cref="Bearing.BearingRotationZ"/>, with nothing needing to know where
-/// the player is looking. Heading and wind are told apart by place and shape rather than
-/// colour alone — the heading marker rides the rim, the wind pointer sits at the centre.
+/// <para>The four signals are ranked by prominence, back to front, so they are told apart
+/// by place and size rather than by colour alone:</para>
+/// <list type="number">
+/// <item>the <b>camera wedge</b>, a quiet background sector showing where the view points;</item>
+/// <item>the <b>card</b>, carrying the north/south reference, subordinate by design;</item>
+/// <item>the <b>character arrow</b>, centre-mounted and the longest thing on the dial - this
+/// is what the compass is for;</item>
+/// <item>the <b>wind rune</b>, a small glyph orbiting outside the rim, about a third the
+/// arrow's size so wind never competes with facing.</item>
+/// </list>
 ///
-/// Which layers move is not a skin's choice. A skin supplies artwork and a resting scale.
+/// <para>Which layers move is not a skin's choice. A skin supplies artwork and a resting
+/// scale.</para>
 /// </remarks>
 internal sealed class CompassUI : IDisposable
 {
+    // How hard a storm pushes each layer. The card is the magnetically sensitive element
+    // and suffers most; the character arrow is the primary read and suffers least, so the
+    // compass degrades without becoming unusable. Wind is exactly zero - see LD-7.
+    private const float CardAmplitude = 1.00f;
+    private const float WedgeAmplitude = 0.70f;
+    private const float ArrowAmplitude = 0.50f;
+    private const float WindAmplitude = 0.00f;
+
+    // Phase offsets used when layers wander independently rather than in lockstep.
+    // Public because the controller samples the wander waveform per layer; keeping the
+    // seeds here keeps them beside the amplitudes they pair with.
+    public const float CardPhaseSeed = 0f;
+    public const float WedgePhaseSeed = 2.1f;
+    public const float ArrowPhaseSeed = 4.7f;
+
     private readonly GameObject _root;
     private readonly RectTransform _panel;
-    private readonly RectTransform _dial;
-    private readonly RectTransform _headingMarker;
-    private readonly RectTransform _windPointer;
+    private readonly DirectionLayer _card;
+    private readonly DirectionLayer _cameraWedge;
+    private readonly DirectionLayer _characterArrow;
+    private readonly DirectionLayer _windGust;
     private readonly Text _headingText;
     private readonly Text _windText;
     private readonly CanvasGroup _canvasGroup;
@@ -43,23 +66,24 @@ internal sealed class CompassUI : IDisposable
         _root = CompassUiFactory.BuildRoot();
         _canvasGroup = CreateCanvasGroup(_root);
         _panel = CompassUiFactory.BuildPanel(_root.transform);
+        Font font = CompassUiFactory.CreateFont();
 
-        // Base first so it renders beneath the card: a Canvas draws in depth-first
-        // pre-order, and an object's whole subtree is emitted before its next sibling.
+        // A Canvas draws depth-first in pre-order, so construction order is z-order.
         if (skinned && skin!.Base != null)
         {
             CompassUiFactory.CreateSkinLayer("SkinBase", _panel, skin.Base);
         }
 
-        _dial = CompassUiFactory.BuildDial(_panel);
-        Font font = CompassUiFactory.CreateFont();
+        _cameraWedge = new DirectionLayer(
+            CompassLayers.CreateCameraWedge(_panel, skin?.CameraWedge), WedgeAmplitude, WedgePhaseSeed);
+        _card = new DirectionLayer(BuildCard(skin, skinned, font), CardAmplitude, CardPhaseSeed);
+        _characterArrow = new DirectionLayer(
+            CompassLayers.CreateCharacterArrow(_panel, skin?.CharacterArrow),
+            ArrowAmplitude,
+            ArrowPhaseSeed);
+        _windGust = new DirectionLayer(
+            CompassLayers.CreateWindGust(_panel, skin?.WindGust), WindAmplitude, 0f);
 
-        _windPointer = skinned
-            ? CompassUiFactory.CreateSkinLayer("WindPointer", _panel, skin!.WindPointer!)
-            : CompassUiFactory.CreateWindNeedle(_panel);
-        _headingMarker = BuildCard(skin, skinned, font);
-
-        // Readouts sit just below the dial, so they follow its size.
         const float below = CompassUiFactory.DialSize * 0.5f;
         _headingText = CompassUiFactory.CreateReadout(
             "HeadingText", _panel, new Vector2(0f, -(below + 14f)), font, 14);
@@ -70,23 +94,22 @@ internal sealed class CompassUI : IDisposable
     }
 
     /// <summary>
-    /// Populates the fixed card and returns the marker that travels to the player's
-    /// bearing. A skin supplies the ring artwork; without one, primitive glyphs stand in.
-    /// The needle itself is drawn by the mod so heading always reads the same way.
+    /// Builds the card that carries the north/south reference: skin ring when available,
+    /// primitive cardinal glyphs otherwise.
     /// </summary>
     private RectTransform BuildCard(CompassSkin? skin, bool skinned, Font font)
     {
-        if (!skinned)
+        RectTransform card = CompassUiFactory.BuildCard(_panel);
+        if (skinned)
         {
-            CompassUiFactory.AddCardinals(_dial, font);
+            CompassUiFactory.CreateSkinLayer("SkinRing", card, skin!.Ring!);
         }
         else
         {
-            CompassUiFactory.CreateSkinLayer("SkinRing", _dial, skin!.Ring!);
+            CompassLayers.AddCardinals(card, font);
         }
 
-        // The needle is drawn last so it sits above the card and the wind spear.
-        return CompassUiFactory.CreateHeadingNeedle(_panel);
+        return card;
     }
 
     private static CanvasGroup CreateCanvasGroup(GameObject root)
@@ -112,8 +135,9 @@ internal sealed class CompassUI : IDisposable
     }
 
     /// <summary>
-    /// Numeric bearing readouts are diagnostic, not the normal presentation — Rune Compass
-    /// gives direction, not instrumentation.
+    /// Numeric readouts are diagnostic, not the normal presentation - Rune Compass gives
+    /// direction, not instrumentation. Camera heading and wind only; the character-facing
+    /// bearing drives the arrow and is deliberately not given a third numeric line.
     /// </summary>
     public void SetReadoutsVisible(bool visible)
     {
@@ -127,9 +151,16 @@ internal sealed class CompassUI : IDisposable
         _windText.gameObject.SetActive(visible);
     }
 
-    public void SetHeading(float degrees)
+    /// <summary>Points the card at true north, displaced by storm interference.</summary>
+    public void SetNorth(float deflection)
     {
-        _headingMarker.localEulerAngles = new Vector3(0f, 0f, Bearing.BearingRotationZ(degrees));
+        _card.Point(0f, deflection);
+    }
+
+    /// <summary>Points the camera wedge at the bearing the view faces.</summary>
+    public void SetCameraHeading(float degrees, float deflection)
+    {
+        _cameraWedge.Point(degrees, deflection);
 
         int shown = Mathf.RoundToInt(degrees);
         if (_shownHeading == shown)
@@ -141,11 +172,22 @@ internal sealed class CompassUI : IDisposable
         _headingText.text = $"{shown:000}° {Bearing.Cardinal(shown)}";
     }
 
-    public void SetWind(float? degrees)
+    /// <summary>Points the character arrow at the bearing the player's body faces.</summary>
+    public void SetFacing(float degrees, float deflection)
+    {
+        _characterArrow.Point(degrees, deflection);
+    }
+
+    /// <summary>
+    /// Orbits the wind rune to the bearing the wind blows toward. It is handed the same
+    /// deflection as every other layer and immune to it by construction, because its
+    /// amplitude scale is zero.
+    /// </summary>
+    public void SetWind(float? degrees, float deflection)
     {
         if (!degrees.HasValue)
         {
-            _windPointer.gameObject.SetActive(false);
+            _windGust.SetVisible(false);
             if (_shownWind.HasValue)
             {
                 _shownWind = null;
@@ -155,9 +197,8 @@ internal sealed class CompassUI : IDisposable
             return;
         }
 
-        _windPointer.gameObject.SetActive(true);
-        _windPointer.localEulerAngles =
-            new Vector3(0f, 0f, Bearing.BearingRotationZ(degrees.Value));
+        _windGust.SetVisible(true);
+        _windGust.Point(degrees.Value, deflection);
 
         int shown = Mathf.RoundToInt(degrees.Value);
         if (_shownWind == shown)

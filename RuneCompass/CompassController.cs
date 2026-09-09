@@ -9,7 +9,10 @@ internal sealed class CompassController : IDisposable
     private readonly ManualLogSource _log;
     private readonly CompassSettings _settings;
     private readonly HeadingProvider _headingProvider = new();
+    private readonly FacingProvider _facingProvider = new();
     private readonly WindProvider _windProvider = new();
+    private readonly StormProvider _stormProvider;
+    private readonly InterferenceEnvelope _envelope = new();
 
     private CompassUI? _ui;
     private CompassSkin? _skin;
@@ -19,17 +22,13 @@ internal sealed class CompassController : IDisposable
     {
         _log = log;
         _settings = settings;
+        _stormProvider = new StormProvider(log);
     }
 
     public void Tick()
     {
-        if (!ShouldShow())
-        {
-            Hide();
-            return;
-        }
-
-        if (!_headingProvider.TryGetHeadingDegrees(_settings.HeadingOffset(), out float heading))
+        if (!ShouldShow()
+            || !_headingProvider.TryGetHeadingDegrees(_settings.HeadingOffset(), out float heading))
         {
             Hide();
             return;
@@ -40,11 +39,67 @@ internal sealed class CompassController : IDisposable
         _ui.ApplyLayout(
             _settings.Scale(), _settings.Opacity(), _settings.Offset(), _settings.Anchor());
         _ui.SetReadoutsVisible(_settings.ShowReadouts());
-        _ui.SetHeading(heading);
+
+        AdvanceInterference();
+        Render(heading);
+    }
+
+    /// <summary>
+    /// Grows or fades the interference envelope toward the current storm state.
+    /// </summary>
+    /// <remarks>
+    /// The envelope is advanced even while interference is disabled, so re-enabling mid
+    /// storm does not snap the compass. <c>unscaledDeltaTime</c> keeps the ramp honest
+    /// while the game is paused or time-scaled.
+    /// </remarks>
+    private void AdvanceInterference()
+    {
+        bool storm = _settings.InterferenceEnabled()
+            && _stormProvider.IsStorm(_settings.StormEnvironments());
+        _envelope.Tick(
+            storm,
+            Time.unscaledDeltaTime,
+            CompassSettings.ClampRamp(_settings.InterferenceRampSeconds()));
+    }
+
+    /// <summary>
+    /// Hands each layer its bearing and its share of the storm displacement.
+    /// </summary>
+    /// <remarks>
+    /// The wind rune is handed a deflection like everything else and ignores it, because
+    /// its amplitude scale is zero. Wind is directly observable in the world - driven rain,
+    /// bent grass, a sail - so the instrument failing while observation continues is the
+    /// coherent reading.
+    /// </remarks>
+    private void Render(float heading)
+    {
+        float max = CompassSettings.ClampDeflection(_settings.MaxDeflectionDegrees());
+        float now = Time.unscaledTime;
+        bool independent = _settings.IndependentLayerInterference();
+
+        _ui!.SetNorth(Deflect(max, now, independent, CompassUI.CardPhaseSeed));
+        _ui.SetCameraHeading(heading, Deflect(max, now, independent, CompassUI.WedgePhaseSeed));
+
+        if (_facingProvider.TryGetFacingDegrees(_settings.HeadingOffset(), out float facing))
+        {
+            _ui.SetFacing(facing, Deflect(max, now, independent, CompassUI.ArrowPhaseSeed));
+        }
+
         _ui.SetWind(
             _windProvider.TryGetWindTowardDegrees(out float wind)
                 ? Bearing.Normalize(_settings.WindPointsToward() ? wind : wind + 180f)
-                : null);
+                : null,
+            0f);
+    }
+
+    /// <summary>
+    /// The displacement for one layer. In shared mode every layer is given phase zero, so
+    /// the three disturbed layers swing together; in independent mode each carries its own.
+    /// </summary>
+    private float Deflect(float max, float now, bool independent, float phaseSeed)
+    {
+        return Interference.Deflection(
+            _envelope.Level, max, now, independent ? phaseSeed : 0f);
     }
 
     /// <summary>
@@ -84,12 +139,17 @@ internal sealed class CompassController : IDisposable
         _ui = new CompassUI(_skin);
         _log.LogInfo(
             _skin == null
-                ? "Rune Compass heading-up HUD created (primitive)."
-                : $"Rune Compass heading-up HUD created (skin: {_skin.Name}).");
+                ? "Rune Compass north-up HUD created (primitive)."
+                : $"Rune Compass north-up HUD created (skin: {_skin.Name}).");
     }
 
+    /// <summary>
+    /// Hides the HUD and drops interference, so a compass re-shown later starts settled
+    /// rather than mid-storm.
+    /// </summary>
     private void Hide()
     {
         _ui?.SetVisible(false);
+        _envelope.Reset();
     }
 }

@@ -27,6 +27,11 @@ public sealed class Plugin : BaseUnityPlugin
     private ConfigEntry<bool> _showReadouts = null!;
     private ConfigEntry<string> _selectedSkin = null!;
     private ConfigEntry<bool> _windPointsToward = null!;
+    private ConfigEntry<bool> _interferenceEnabled = null!;
+    private ConfigEntry<string> _stormEnvironments = null!;
+    private ConfigEntry<float> _maxDeflection = null!;
+    private ConfigEntry<float> _interferenceRamp = null!;
+    private ConfigEntry<bool> _independentLayers = null!;
 
     private void Awake()
     {
@@ -48,6 +53,13 @@ public sealed class Plugin : BaseUnityPlugin
                 SelectedSkin = () => _selectedSkin.Value,
                 WindPointsToward = () => _windPointsToward.Value,
                 SkinsRoot = () => SkinsRoot,
+                InterferenceEnabled = () => _interferenceEnabled.Value,
+                StormEnvironments = () => CompassSettings.ParseNames(_stormEnvironments.Value),
+                MaxDeflectionDegrees =
+                    () => CompassSettings.ClampDeflection(_maxDeflection.Value),
+                InterferenceRampSeconds =
+                    () => CompassSettings.ClampRamp(_interferenceRamp.Value),
+                IndependentLayerInterference = () => _independentLayers.Value,
             });
 
         string skins = SkinsRoot;
@@ -60,6 +72,7 @@ public sealed class Plugin : BaseUnityPlugin
     {
         BindGeneral();
         BindDisplay();
+        BindStorm();
         _windPointsToward = Config.Bind(
             "Calibration",
             "WindPointsToward",
@@ -121,6 +134,61 @@ public sealed class Plugin : BaseUnityPlugin
             "Vertical nudge from the anchored resting position, in pixels. Positive is up.");
     }
 
+
+    /// <summary>
+    /// Storm interference. Valheim exposes no storm flag of any kind, so storm state is
+    /// composed from the environment name - which is what the game does internally too.
+    /// </summary>
+    private void BindStorm()
+    {
+        _interferenceEnabled = Config.Bind(
+            "Storm",
+            "InterferenceEnabled",
+            true,
+            "Let storms disturb the compass. Set false to keep it accurate in all weather.");
+        _stormEnvironments = Config.Bind(
+            "Storm",
+            "StormEnvironments",
+            "ThunderStorm",
+            "Comma-separated environment names treated as storms. Ships with only "
+            + "ThunderStorm, the one name confirmed present in the game's own code; every "
+            + "other environment name lives in compressed asset data and would be a guess. "
+            + "On the first world load Rune Compass logs every environment your install "
+            + "actually has, with its wind range - add the stormy ones here from that list.");
+        BindStormTuning();
+    }
+
+    /// <summary>
+    /// The two bounded values. Both bounds are load-bearing rather than stylistic, which is
+    /// why each config comment states what breaks outside it. Split from
+    /// <see cref="BindStorm"/> at exactly the Section 4 limit.
+    /// </summary>
+    private void BindStormTuning()
+    {
+        _maxDeflection = Config.Bind(
+            "Storm",
+            "MaxDeflectionDegrees",
+            22f,
+            "How far a storm can push the compass off true, in degrees. Clamped to "
+            + "35 - past that the N/E/S/W marks baked into the card turn upside down and "
+            + "stop reading, which is the exact problem the north-up dial was adopted to fix.");
+        _interferenceRamp = Config.Bind(
+            "Storm",
+            "InterferenceRampSeconds",
+            4f,
+            "Seconds for interference to reach full strength, and to fade again. Clamped to "
+            + "a minimum of 3: Valheim switches the environment name at the START of a "
+            + "weather transition, so a fast ramp would make the compass react before the "
+            + "sky does and turn it into a storm early-warning device. Raise this if "
+            + "interference arrives ahead of the weather.");
+        _independentLayers = Config.Bind(
+            "Storm",
+            "IndependentLayerInterference",
+            true,
+            "true: the card, camera wedge and character arrow each wander on their own "
+            + "phase. false: all three swing together. Comparison setting - the better of "
+            + "the two becomes fixed behaviour once it has been judged in a live storm.");
+    }
     /// <summary>
     /// <c>Assets/Skins</c> beside the plugin DLL. BepInEx loads plugins from disk, so the
     /// assembly location is the install directory the build script deployed assets into.

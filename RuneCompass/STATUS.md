@@ -250,3 +250,81 @@ player-facing description.
 3. Complete the remaining human in-game acceptance checklist.
 4. Merge PR #9 only when those results are recorded.
 5. Start the visual/skin cycle with `ClassicWood`, then extract the loader, then prove a second skin.
+
+---
+
+# Storm + directional hierarchy — operator test protocol
+
+Session `2026-09-09T1559-7ca34d`, branch `feat/rune-compass-storm-hierarchy`.
+
+**Merge is blocked until every row below is recorded.** This cannot be automated: an
+unattended launch stops at the main menu, and `CompassController` builds no HUD until
+`Player.m_localPlayer` is non-null. A human has to load a world.
+
+## Setting up
+
+The compass is installed and the build is green. Two things make this quick:
+
+- **`ConfigWatcher` reloads config live**, so every value below can be retuned without a
+  relaunch. No value change costs a world load.
+- **Storms can be summoned rather than waited for.** `EnvMan.GetCurrentEnvironment()`
+  honours the force-environment override, so a console `env ThunderStorm` puts you in one
+  immediately, and `env clear` (or whatever your install's clear-weather name turns out to
+  be) takes you out. **Row S2 gives you the real names.**
+
+## The rows
+
+| # | Check | What should happen | Result |
+|---|---|---|---|
+| S1 | Clear weather, standing still | **No drift.** Card steady on north, camera sector steady, arrow steady, wind rune steady. Nothing wanders. This is the deflection invariant — the HUD's *look* has deliberately changed (wind moved to the rim, the arrow is new), so judge motion, not appearance. | |
+| S2 | Read the environment log | `BepInEx/LogOutput.log` contains a `Rune Compass sees N environments` block listing your install's real names and wind ranges. Copy the stormy ones into `StormEnvironments`. | |
+| S3 | Transition into a storm | Interference **ramps in smoothly**. No snap, no jump. **Note whether it starts visibly before the sky changes** — if so, raise `InterferenceRampSeconds`. | |
+| S4 | Sustained storm | Card, sector and arrow wander continuously and independently of each other. Never spins, never freezes, never twitches. Direction still roughly readable — you should still be able to navigate, badly. | |
+| S5 | Transition out of a storm | Ramps out smoothly and settles **exactly** on true north. No residual offset left behind. | |
+| S6 | Orbit the camera, character standing still | **Camera sector moves; the facing arrow holds.** This is the whole reason facing and camera are separate signals. | |
+| S7 | Turn the character without moving the camera | Arrow moves; sector holds. The mirror of S6. | |
+| S8 | Wind changes during a storm | The wind rune tracks the live wind and **stays true** while the other three wander. Cross-check against smoke from a fire or a sail if one is handy. | |
+| S9 | Disable Rune Compass mid-interference | Set `Enabled = false` during a storm. HUD disappears cleanly, no exception in the log. Re-enable: the compass returns **settled**, not mid-wander. | |
+| S10 | **`IndependentLayerInterference` both ways** | Flip it during one sustained storm and compare directly. `true` = each layer on its own phase; `false` = all three in lockstep. **Which reads better?** This settles the open question. | |
+| S11 | Storm near the world edge | Interference is governed strictly by the environment name, and is unaffected by the very high wind Valheim forces near the edge of the map. | |
+
+## After S10
+
+The comparison toggle is a measuring instrument, not a feature. Once you have judged it:
+
+1. Hard-code the winner.
+2. Delete `IndependentLayerInterference` from `Plugin.cs`, `CompassSettings.cs` and
+   `CompassController.cs`.
+3. `verify-local.ps1 -Seal` must then exit 0. **It currently exits 1 on purpose** — the
+   seal refuses while the toggle is still in the tree, so this cannot be forgotten:
+
+```text
+  [FAIL] IndependentLayerInterference still present in 4 place(s):
+         CompassController.cs:78
+         CompassSettings.cs:64
+         Plugin.cs:62
+         Plugin.cs:186
+```
+
+## What is already proven locally
+
+| Claim | Evidence |
+|---|---|
+| Builds clean | `build-local.ps1`: 0 warnings, 0 errors |
+| Angle math unchanged | `verify-local.ps1`: 25 bearing assertions against hand-computed literals |
+| Wander is bounded and deterministic | 10000-point sweep stays within [-1, 1]; repeat calls agree; distinct seeds separate layers |
+| Envelope is correct at both edges | Reaches 1.0 at exactly the ramp, releases symmetrically to 0.0, never leaves [0,1], and a storm ending mid-attack releases from 0.25 rather than 1.0 |
+| Clear weather adds no rotation | `Deflection` returns exactly 0 at envelope level 0, at three different times and seeds |
+| Both bounds hold | Deflection 180 clamps to 35, -5 clamps to 0; ramp 0.5 clamps to 3.0 |
+| Wind immunity is structural | `CompassUI.WindAmplitude` reads 0 off the compiled type |
+| Seal control can actually fail | `-Seal` exits 1 while the toggle lives, 0 without it. Failure #6 was a check that could not fail; this one is proven capable of failing |
+| Superseded model cannot return | `verify-local.ps1` refuses `RoseRotationZ`, `WindRotationZ`, `CreateWindNeedle`, `_rose` |
+| Razor holds | Largest file `CompassUI.cs` 217/250; longest method 34/40 |
+| Nothing outside the mod was touched | Install wrote exactly 4 files, all under `plugins/RuneCompass`; save integrity clean |
+
+## What only a human can confirm
+
+Everything about how it **looks and feels**: whether the hierarchy reads correctly at a
+glance, whether 22 degrees of wander is too much or too little, whether the ramp is the
+right length, and whether independent or shared interference is the better effect. Those
+are taste calls made in a live storm, and no assertion substitutes for them.
