@@ -18,6 +18,7 @@ WulfPack Mods is the in-game modding side of the broader WulfPack Valheim projec
 - [Design principles](#design-principles)
 - [Local build and validation policy](#local-build-and-validation-policy)
 - [Adding another mod](#adding-another-mod)
+- [Mod risk tiers](#mod-risk-tiers)
 - [Status](#status)
 
 ## Current mods
@@ -28,6 +29,71 @@ WulfPack Mods is the in-game modding side of the broader WulfPack Valheim projec
 | **Rune Compass** | Immersive No Map navigation with heading and live wind direction. | 🧪 First playable implementation merged; local gameplay validation remains | [README](RuneCompass/README.md) · [Implementation plan](RuneCompass/IMPLEMENTATION_PLAN.md) · [Status](RuneCompass/STATUS.md) |
 | **Pied Piper** | One consistent Follow / Stay command for eligible tamed creatures. | 🧱 Repository mesh established; API discovery next | [README](PiedPiper/README.md) · [Implementation plan](PiedPiper/IMPLEMENTATION_PLAN.md) · [Status](PiedPiper/STATUS.md) |
 | **Vidar Shrugged** | Large-settlement performance instrumentation and optimization. | 🧪 Gate 0 foundation merged; runtime validation open | [README](VidarShrugged/README.md) · [Implementation plan](VidarShrugged/IMPLEMENTATION_PLAN.md) · [Benchmark plan](VidarShrugged/BENCHMARK_PLAN.md) · [Status](VidarShrugged/STATUS.md) |
+
+## Mod risk tiers
+
+What a mod is allowed to touch decides how hard it has to be validated. The tier is the
+distinction that matters here — not which repository a mod lives in. A mod that patches
+live game objects is a different proposition from one that reads state and draws a HUD,
+and it earns a stricter gate regardless of where its folder sits.
+
+| Mod | Tier | Touches | Gate required |
+| --- | --- | --- | --- |
+| **Rested Whispers** | read-only | reads status effects, shows native messages | build, load, lifecycle containment |
+| **Rune Compass** | read-only | reads camera heading and wind, draws a HUD | build, load, lifecycle containment |
+| **Vidar Shrugged** | read-only | reads frame timings and scene population | build, load, lifecycle containment |
+| **Pied Piper** | state-touching | Harmony patches on `Tameable`; issues commands to live creatures | build, load, lifecycle containment, **plus a save-integrity diff across a play session with the patches live** |
+
+### Tier definitions
+
+- **read-only** — observes game state and may draw UI. No Harmony patches, no mutation of
+  game objects, no writes to save or world data.
+- **state-touching** — patches or mutates live game objects during a session. Cannot be
+  assumed harmless to a character or world just because uninstall is clean; the risk is
+  what happens *while it runs*, not what it leaves behind.
+- **persistent** — writes to save, world, or ZDO state that survives the session. Nothing
+  is in this tier, and nothing should enter it without an explicit decision recorded here.
+
+### Why tier and not repository
+
+Splitting a state-touching mod into its own repository does not make its patches safer. The
+protection is per-mod containment, which every mod already has and which is measured rather
+than assumed: its own plugin GUID, its own install path, its own config, deletes guarded by
+leaf name, and a SHA-256 diff proving save data is byte-identical across a full
+install/disable/enable/uninstall cycle.
+
+Fragmenting also costs something concrete. `build-local.ps1` is a shared template, and a
+parse-time defect in it once propagated from Rune Compass into Pied Piper unnoticed. In one
+repository that is a single fix and a single scan. Across four it is four divergent copies
+with nowhere to fix them at once.
+
+Vidar Shrugged is the case that settles it: its plan already names `ZSyncTransform`
+suppression, so it becomes state-touching the moment Gate 1 starts. If Harmony justified a
+separate repository, the monorepo would dissolve by attrition.
+
+### Keeping this table honest
+
+A table nobody checks is a table that drifts. `verify-repo.ps1` enforces it locally:
+
+```powershell
+.\verify-repo.ps1
+```
+
+It fails when:
+
+- a mod folder exists with no row here, or a row names a folder that does not exist;
+- a mod declared **read-only** references Harmony or contains patch attributes — the claim
+  is checked against the code, not taken on trust;
+- the table parses to zero rows, which would otherwise let a broken parser report success
+  forever.
+
+That last one is not hypothetical. A governance check in this repository once parsed zero
+rows for its entire life because the values it read were wrapped in bold markup, and every
+report it produced was hand-written instead. A gate that reports nothing has not passed —
+it has not run.
+
+Raising a tier is a deliberate act: change the row, extend the gate, and say in the mod's
+`STATUS.md` what new evidence the higher tier now demands.
 
 ### Rested Whispers
 
