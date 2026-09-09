@@ -17,9 +17,19 @@
     Repository root. Defaults to the directory containing this script.
 #>
 [CmdletBinding()]
-param([string]$RepoRoot = $PSScriptRoot)
+param([string]$RepoRoot)
 
 $ErrorActionPreference = "Stop"
+
+# The default cannot live in the param block. Under [CmdletBinding()], PowerShell binds
+# parameter defaults before $PSScriptRoot is populated in script scope, so
+# `param([string]$RepoRoot = $PSScriptRoot)` binds empty -- but only when the script is
+# invoked as `powershell -File .\verify-repo.ps1`. Called the documented interactive
+# way (`.\verify-repo.ps1`) it binds correctly, which is why this survived: the form
+# that breaks is the form automation uses, and the one that works is the form a human uses.
+if (-not $RepoRoot) {
+    $RepoRoot = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
+}
 
 $script:Failures = New-Object System.Collections.Generic.List[string]
 function Fail { param([string]$Message) Write-Host "  [FAIL] $Message" -ForegroundColor Red; $script:Failures.Add($Message) }
@@ -121,6 +131,86 @@ foreach ($mod in $mods) {
     } else {
         Pass "$mod read-only claim holds (no Harmony reference or patch code)"
     }
+}
+
+# ------------------------------------------------- documented commands are runnable ----
+# Authoring escape processing turns a lost backslash into a control character: a "\v"
+# becomes a vertical tab, a "\b" a backspace, and the letter goes with it. Rendered markdown
+# still looks almost right, so a README can spend its whole life instructing readers to run
+# a command that does not exist. This repository shipped exactly that in three places.
+#
+# So: control characters in tracked text are a hard failure, and every .ps1 a document names
+# must resolve to a real file. Paths are normalised to forward slashes before matching, which
+# is also why this check contains no doubled backslash of its own -- the bug it exists to
+# catch is a bug about backslashes surviving one layer of processing too few.
+Write-Host ""
+Write-Host "--- documented commands ---"
+
+$bs = [string][char]92
+$textPattern  = '\.(md|ps1|cs|csproj|json|txt|yml|yaml)$'
+$controlChars = [regex]::new('[\x00-\x08\x0B\x0C\x0E-\x1F]')
+$scriptRefs   = [regex]::new('[A-Za-z0-9_./-]*[A-Za-z0-9_-]\.ps1')
+$seenRef = $false
+$failuresBefore = $script:Failures.Count
+
+# Scope is what git tracks. docs/, qor/ and .claude/ are gitignored local governance
+# surfaces, not part of the published repository, and holding them to the repository's
+# documentation contract would report failures nobody can act on from a clone.
+$tracked = & git -C $RepoRoot ls-files
+if ($LASTEXITCODE -ne 0 -or -not $tracked) {
+    Fail "could not list tracked files via git - documentation check cannot establish its scope"
+    $tracked = @()
+}
+
+# Any .ps1 anywhere in the repository is a legitimate target: build-local.ps1 lives once
+# per mod, and a document beside one may name it bare.
+$scriptsByName = @{}
+foreach ($ps1 in (Get-ChildItem -LiteralPath $RepoRoot -File -Recurse -Filter *.ps1 -ErrorAction SilentlyContinue)) {
+    $scriptsByName[$ps1.Name] = $true
+}
+
+foreach ($relRaw in $tracked) {
+    $file = Get-Item -LiteralPath (Join-Path $RepoRoot $relRaw) -ErrorAction SilentlyContinue
+    if (-not $file) { continue }
+    $full = $file.FullName.Replace($bs, '/')
+    if ($file.Name -notmatch $textPattern) { continue }
+
+    $text = Get-Content -LiteralPath $file.FullName -Raw -ErrorAction SilentlyContinue
+    if (-not $text) { continue }
+    $rel = $full.Substring($RepoRoot.Replace($bs, '/').Length).TrimStart('/')
+
+    if ($controlChars.IsMatch($text)) {
+        $codes = ($controlChars.Matches($text) |
+            ForEach-Object { "0x{0:X2}" -f [int][char]$_.Value } |
+            Select-Object -Unique) -join ", "
+        Fail "$rel contains control characters ($codes) - almost certainly a backslash eaten by escape processing"
+    }
+
+    # Only documentation makes a promise to a reader. Source and script files mention .ps1
+    # names incidentally -- including this gate, which names itself in a comment -- and
+    # counting those would keep $seenRef permanently true, making the parsed-nothing guard
+    # below unreachable. A guard that cannot fire is not a guard.
+    if ($file.Name -notmatch '\.md$') { continue }
+
+    # Normalise separators so a mod-qualified path and a repo-relative one reduce to the
+    # same shape, then require the named script to exist somewhere in the repository.
+    foreach ($m in $scriptRefs.Matches($text.Replace($bs, '/'))) {
+        $target = $m.Value.TrimStart('.', '/')
+        if (-not $target) { continue }
+        $seenRef = $true
+        $beside = Join-Path $file.DirectoryName $target
+        $atRoot = Join-Path $RepoRoot $target
+        $byName = $scriptsByName.ContainsKey((Split-Path $target -Leaf))
+        if (-not $byName -and -not (Test-Path -LiteralPath $beside) -and -not (Test-Path -LiteralPath $atRoot)) {
+            Fail "$rel documents '$($m.Value)', which names no script in this repository"
+        }
+    }
+}
+
+if (-not $seenRef) {
+    Fail "no .ps1 invocation named in any markdown file - this check parsed nothing and would pass forever"
+} elseif ($script:Failures.Count -eq $failuresBefore) {
+    Pass "every script named in documentation resolves; no control characters in tracked text"
 }
 
 Write-Host ""

@@ -27,3 +27,7 @@ AGENTS.md
 
 # Transient governance gate outputs
 dist/
+
+# Save-integrity baseline: a machine-local index of the operator's Valheim save
+# directory, written into the repo root by verify-save-integrity.ps1 -Baseline.
+.save-baseline.json

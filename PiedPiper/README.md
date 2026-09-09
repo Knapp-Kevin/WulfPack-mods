@@ -80,7 +80,7 @@ Commanding back to Follow calls `ResetPatrolPoint` and clears the stored value. 
 exists only while the mod is installed, so the safe order is:
 
 1. Command every Pied Piper–commanded creature back to **Follow**.
-2. Then `.\PiedPiperuild-local.ps1 -Uninstall`.
+2. Then `.\PiedPiper\build-local.ps1 -Uninstall`.
 
 Nothing else this mod does survives removal. `m_commandable` is re-applied from the prefab
 on every wake and is never written to a save.
