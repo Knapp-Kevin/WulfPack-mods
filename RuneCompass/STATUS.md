@@ -14,6 +14,9 @@ Six presentation asset families are prepared, but deliberately remain unbound:
 - `BlackIron`: complete dark timber, iron, and copper four-layer bundle plus `skin.json`;
 - `GildedSigil`: complete ornate runic four-layer bundle plus `skin.json`;
 - all six bundles use the same centered pivot and north-up source convention;
+- all six now include a dedicated `heading_pointer.png` whose warm solid silhouette is
+  intentionally more prominent than the wind pointer;
+- runtime binding for `headingPointerTexture` remains for the validated integration branch;
 - the three follow-up rings omit baked cardinal letters for compatibility with the
   runtime's upright, counter-rotated glyphs;
 - no runtime behavior or gameplay code changed during asset preparation.

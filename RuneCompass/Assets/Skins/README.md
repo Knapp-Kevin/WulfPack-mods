@@ -4,27 +4,27 @@ Rune Compass skins are presentation-only asset bundles. They must not alter navi
 
 ## Which layers move
 
-Rune Compass is **heading-up**: the compass card rotates so each cardinal sits at its
-true bearing relative to the player's view, and screen-up is always the player's facing.
+Rune Compass is **north-up**: the compass card is fixed with north at 12 o'clock. The
+heading and wind pointers move independently to their absolute world bearings.
 
 That fixes the motion of every layer, and a skin does not get to choose it:
 
 | Layer | Moves? |
 |---|---|
 | `base.png` — back plate behind the card | static |
-| `ring.png` — rotating card geometry and navigation marks | **rotates with the rose**, by `+heading` |
-| `wind_pointer.png` | mounted on the card; carries a pure world bearing |
-| `north_marker.png` (optional) | mounted on the card at bearing 0 |
-| `lubber_marker.png` — "you are looking this way" | static, at the top of the dial |
+| `ring.png` — fixed card geometry and navigation marks | static, north at 12 o'clock |
+| `wind_pointer.png` | rotates to the wind-toward world bearing; secondary signal |
+| `heading_pointer.png` | rotates to the player's world bearing; primary signal |
+| `lubber_marker.png` | optional static accent at the north index |
 
-A skin supplies artwork for these roles. It never decides which of them rotate, and it
-cannot introduce a layer with its own heading-dependent rotation — heading is applied in
-exactly one transform, and that is a behavioural invariant, not a presentation choice.
+A skin supplies artwork for these roles. It never decides which of them rotate. Heading
+and wind each receive one absolute-bearing transform; that is a behavioural invariant,
+not a presentation choice.
 
-Art authored for the ring should therefore read correctly at **any** rotation. Current
-runtime cardinal glyphs travel with the ring but counter-rotate to remain upright, so
-new rings omit baked `N`/`E`/`S`/`W` letters. Decorative runes may rotate with the card
-because they are ornament, not primary direction labels.
+The heading pointer is intentionally the dominant indicator: warm, solid, 379 pixels tall
+on the shared authoring canvas, with a broad tip and central boss. Wind uses a slimmer
+feather, spear, or arrow silhouette and renders beneath heading. Shape, mass, layer order,
+and material distinguish the signals before colour does.
 
 Prepared skins contain:
 
@@ -32,15 +32,15 @@ Prepared skins contain:
 <SkinName>/
 ├── base.png
 ├── ring.png
+├── heading_pointer.png
 ├── wind_pointer.png
 ├── lubber_marker.png
 └── skin.json
 ```
 
 Not every texture is mandatory. A skin definition declares only the layers it uses.
-The original three bundles predate the upright-glyph decision and retain baked cardinal
-art. The three follow-up bundles use letterless rings and are the cleaner integration
-reference. A separate `ring_marks.png` is not needed.
+The original three bundles retain baked cardinal art. The three follow-up bundles use
+letterless rings and therefore require runtime cardinal glyphs when they are bound.
 
 ## Prepared families
 
@@ -54,9 +54,9 @@ reference. A separate `ring_marks.png` is not needed.
 | `GildedSigil` | prepared, not yet bound | ornate amber runes and a subdued open-work mystic sigil |
 
 Every prepared PNG is a centered `512 x 512` RGBA canvas. That shared canvas is the
-alignment contract: the ring and wind pointer rotate around `(0.5, 0.5)`, while the base
-and lubber marker remain static. Wind tips and the ring's north-up index point to 12
-o'clock in their source textures. `skin.json` records the same convention beside each
-bundle.
+alignment contract: both pointers rotate around `(0.5, 0.5)`, while the base, ring, and
+optional lubber marker remain static. Both pointer tips and the ring's north index point
+to 12 o'clock in their source textures. `skin.json` records the same convention beside
+each bundle.
 
 The existing concept art should be curated into these roles during implementation. Do not duplicate every source image into every skin just because storage is cheap and restraint apparently is not.
