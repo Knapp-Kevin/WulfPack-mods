@@ -111,10 +111,23 @@ The compass distinguishes:
 Rune Compass shows the direction the wind is blowing **toward**, never the
 meteorological "coming from" convention.
 
-This needs no conversion, because it is already Valheim's own convention. Confirmed from
-`Ship.GetWindAngleFactor()`, which computes `Dot(GetWindDir(), -transform.forward)` and
-drives sail power to zero as that approaches `+1` — the "cannot sail into the wind" case,
-which only holds if the vector points downwind. Adding a negation would be the bug.
+This needs no conversion, because it is already Valheim's own convention. Three independent
+confirmations from the game's own code:
+
+1. **Sailing** — `Ship.GetWindAngleFactor()` drives sail power to zero as
+   `Dot(GetWindDir(), -forward)` approaches `+1`, the cannot-sail-into-the-wind case. Only
+   true if the vector points downwind.
+2. **Physics** — `Cinder.FixedUpdate` accelerates embers along `GetWindForce()`, which is
+   `GetWindDir()` scaled by strength. Debris drifts *with* the vector.
+3. **Valheim's own indicator** — `Minimap.UpdateWindMarker` rotates its marker by
+   `-LookRotation(GetWindDir()).eulerAngles.y`, identical to Rune Compass's mapping.
+
+**Quickest check if you ever doubt it:** open the vanilla minimap and compare its wind
+marker against the compass pointer. They are driven by the same value through the same
+formula, so they must agree. Smoke is harder to read than it sounds.
+
+`WindPointsToward = false` flips to the meteorological "coming from" convention if you
+prefer it.
 
 Heading and wind calculations remain separate in code even though both drive directional UI elements.
 
