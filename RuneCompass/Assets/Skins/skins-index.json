@@ -1,0 +1,20 @@
+{
+  "skins": [
+    "ClassicWood",
+    "MinimalNordic",
+    "RuneRing"
+  ],
+  "liveAssets": [
+    "base.png",
+    "ring.png",
+    "character_arrow.png",
+    "camera_wedge.png",
+    "wind_gust.png"
+  ],
+  "deadAssets": [
+    "wind_pointer.png",
+    "lubber_marker.png"
+  ],
+  "present": 6,
+  "missing": 9
+}

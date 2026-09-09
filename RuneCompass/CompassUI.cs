@@ -16,7 +16,7 @@ namespace WulfPack.RuneCompass;
 /// by place and size rather than by colour alone:</para>
 /// <list type="number">
 /// <item>the <b>camera wedge</b>, a quiet background sector showing where the view points;</item>
-/// <item>the <b>card</b>, carrying the north/south reference, subordinate by design;</item>
+/// <item>the <b>dial face</b>, a fixed frame that never rotates and carries north;</item>
 /// <item>the <b>character arrow</b>, centre-mounted and the longest thing on the dial - this
 /// is what the compass is for;</item>
 /// <item>the <b>wind rune</b>, a small glyph orbiting outside the rim, about a third the
@@ -28,37 +28,21 @@ namespace WulfPack.RuneCompass;
 /// </remarks>
 internal sealed class CompassUI : IDisposable
 {
-    // How hard a storm pushes each layer. The card is the magnetically sensitive element
-    // and suffers most; the character arrow is the primary read and suffers least, so the
-    // compass degrades without becoming unusable. Wind is exactly zero - see LD-7.
-    private const float CardAmplitude = 1.00f;
-    private const float WedgeAmplitude = 0.70f;
-    private const float ArrowAmplitude = 0.50f;
-    private const float WindAmplitude = 0.00f;
-
     // Phase offsets used when layers wander independently rather than in lockstep.
-    // Public because the controller samples the wander waveform per layer; keeping the
-    // seeds here keeps them beside the amplitudes they pair with.
-    public const float CardPhaseSeed = 0f;
+    // Public because the controller samples the wander waveform per layer.
     public const float WedgePhaseSeed = 2.1f;
     public const float ArrowPhaseSeed = 4.7f;
 
     private readonly GameObject _root;
     private readonly RectTransform _panel;
-    private readonly DirectionLayer _card;
     private readonly DirectionLayer _cameraWedge;
     private readonly DirectionLayer _characterArrow;
     private readonly DirectionLayer _windGust;
-    private readonly Text _headingText;
-    private readonly Text _windText;
+    private readonly CompassReadouts _readouts;
     private readonly CanvasGroup _canvasGroup;
     private readonly float _skinScale;
 
-    private int? _shownHeading;
-    private int? _shownWind;
-    private bool _readoutsVisible = true;
-
-    public CompassUI(CompassSkin? skin)
+    public CompassUI(CompassSkin? skin, CompassSettings settings)
     {
         bool skinned = skin is { IsUsable: true };
         _skinScale = skinned ? skin!.DefaultScale : 1f;
@@ -74,42 +58,69 @@ internal sealed class CompassUI : IDisposable
             CompassUiFactory.CreateSkinLayer("SkinBase", _panel, skin.Base);
         }
 
+        // Amplitude suppliers are built once here, never per frame: this HUD ticks
+        // continuously, and a delegate allocated inside the render path would churn.
         _cameraWedge = new DirectionLayer(
-            CompassLayers.CreateCameraWedge(_panel, skin?.CameraWedge), WedgeAmplitude, WedgePhaseSeed);
-        _card = new DirectionLayer(BuildCard(skin, skinned, font), CardAmplitude, CardPhaseSeed);
-        _characterArrow = new DirectionLayer(
-            CompassLayers.CreateCharacterArrow(_panel, skin?.CharacterArrow),
-            ArrowAmplitude,
-            ArrowPhaseSeed);
-        _windGust = new DirectionLayer(
-            CompassLayers.CreateWindGust(_panel, skin?.WindGust), WindAmplitude, 0f);
+            CompassLayers.CreateCameraWedge(_panel, skin?.CameraWedge),
+            settings.AmplitudeCamera,
+            WedgePhaseSeed);
 
-        const float below = CompassUiFactory.DialSize * 0.5f;
-        _headingText = CompassUiFactory.CreateReadout(
-            "HeadingText", _panel, new Vector2(0f, -(below + 14f)), font, 14);
-        _windText = CompassUiFactory.CreateReadout(
-            "WindText", _panel, new Vector2(0f, -(below + 32f)), font, 12);
+        // The dial face is a FIXED frame, not a rotating layer. It was originally a
+        // DirectionLayer at full amplitude, which made the whole card swing in a storm -
+        // and a moving frame both reads as a broken HUD and drowns the pointers' own
+        // motion, since motion is only legible against something still.
+        BuildFrame(skin, skinned, font);
 
+        (_characterArrow, _windGust) = BuildPointers(skin, settings);
+        _readouts = new CompassReadouts(_panel, font);
         SetVisible(false);
     }
 
     /// <summary>
-    /// Builds the card that carries the north/south reference: skin ring when available,
-    /// primitive cardinal glyphs otherwise.
+    /// The two pointers above the dial face: the character arrow - which is the compass's
+    /// needle, there being only one - and the small wind rune orbiting outside the rim.
     /// </summary>
-    private RectTransform BuildCard(CompassSkin? skin, bool skinned, Font font)
+    /// <remarks>
+    /// Wind is constructed with <see cref="DirectionLayer.Immune"/> rather than a settings
+    /// accessor. That is the whole of its protection: there is no configuration key behind
+    /// it to raise, so no edit anywhere can make the wind rune lie.
+    /// </remarks>
+    private (DirectionLayer Arrow, DirectionLayer Wind) BuildPointers(
+        CompassSkin? skin, CompassSettings settings)
     {
-        RectTransform card = CompassUiFactory.BuildCard(_panel);
+        return (
+            new DirectionLayer(
+                CompassLayers.CreateCharacterArrow(_panel, skin?.CharacterArrow),
+                settings.AmplitudeArrow,
+                ArrowPhaseSeed),
+            new DirectionLayer(
+                CompassLayers.CreateWindGust(_panel, skin?.WindGust),
+                DirectionLayer.Immune,
+                0f));
+    }
+
+    /// <summary>
+    /// Builds the dial face: the skin's ring when available, primitive cardinal glyphs
+    /// otherwise. It never rotates, so it returns nothing to turn.
+    /// </summary>
+    /// <remarks>
+    /// Because it holds still, <c>N</c> is permanently at 12 o'clock and the needle rests
+    /// exactly on it in calm weather. A storm then shows as the needle drifting off the mark
+    /// it should be sitting on, which reads far better than drift against nothing - and the
+    /// baked N/E/S/W glyphs can never tilt, which retires the legibility hazard that made
+    /// this mod abandon the heading-up model.
+    /// </remarks>
+    private void BuildFrame(CompassSkin? skin, bool skinned, Font font)
+    {
+        RectTransform frame = CompassUiFactory.BuildCard(_panel);
         if (skinned)
         {
-            CompassUiFactory.CreateSkinLayer("SkinRing", card, skin!.Ring!);
+            CompassUiFactory.CreateSkinLayer("SkinRing", frame, skin!.Ring!);
         }
         else
         {
-            CompassLayers.AddCardinals(card, font);
+            CompassLayers.AddCardinals(frame, font);
         }
-
-        return card;
     }
 
     private static CanvasGroup CreateCanvasGroup(GameObject root)
@@ -134,48 +145,26 @@ internal sealed class CompassUI : IDisposable
         _canvasGroup.alpha = opacity;
     }
 
-    /// <summary>
-    /// Numeric readouts are diagnostic, not the normal presentation - Rune Compass gives
-    /// direction, not instrumentation. Camera heading and wind only; the character-facing
-    /// bearing drives the arrow and is deliberately not given a third numeric line.
-    /// </summary>
     public void SetReadoutsVisible(bool visible)
     {
-        if (_readoutsVisible == visible)
-        {
-            return;
-        }
-
-        _readoutsVisible = visible;
-        _headingText.gameObject.SetActive(visible);
-        _windText.gameObject.SetActive(visible);
-    }
-
-    /// <summary>Points the card at true north, displaced by storm interference.</summary>
-    public void SetNorth(float deflection)
-    {
-        _card.Point(0f, deflection);
+        _readouts.SetVisible(visible);
     }
 
     /// <summary>Points the camera wedge at the bearing the view faces.</summary>
-    public void SetCameraHeading(float degrees, float deflection)
+    /// <remarks>
+    /// The readout keeps reporting the TRUE bearing even while the wedge is captured. It is a
+    /// calibration instrument, not part of the fiction, and it is off by default.
+    /// </remarks>
+    public void SetCameraHeading(float degrees, StormState storm)
     {
-        _cameraWedge.Point(degrees, deflection);
-
-        int shown = Mathf.RoundToInt(degrees);
-        if (_shownHeading == shown)
-        {
-            return;
-        }
-
-        _shownHeading = shown;
-        _headingText.text = $"{shown:000}° {Bearing.Cardinal(shown)}";
+        _cameraWedge.Point(degrees, storm);
+        _readouts.SetHeading(degrees);
     }
 
     /// <summary>Points the character arrow at the bearing the player's body faces.</summary>
-    public void SetFacing(float degrees, float deflection)
+    public void SetFacing(float degrees, StormState storm)
     {
-        _characterArrow.Point(degrees, deflection);
+        _characterArrow.Point(degrees, storm);
     }
 
     /// <summary>
@@ -183,31 +172,17 @@ internal sealed class CompassUI : IDisposable
     /// deflection as every other layer and immune to it by construction, because its
     /// amplitude scale is zero.
     /// </summary>
-    public void SetWind(float? degrees, float deflection)
+    public void SetWind(float? degrees, StormState storm)
     {
+        _readouts.SetWind(degrees);
         if (!degrees.HasValue)
         {
             _windGust.SetVisible(false);
-            if (_shownWind.HasValue)
-            {
-                _shownWind = null;
-                _windText.text = "Wind unavailable";
-            }
-
             return;
         }
 
         _windGust.SetVisible(true);
-        _windGust.Point(degrees.Value, deflection);
-
-        int shown = Mathf.RoundToInt(degrees.Value);
-        if (_shownWind == shown)
-        {
-            return;
-        }
-
-        _shownWind = shown;
-        _windText.text = $"Wind → {shown:000}° {Bearing.Cardinal(shown)}";
+        _windGust.Point(degrees.Value, storm);
     }
 
     public void Dispose()

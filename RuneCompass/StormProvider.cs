@@ -26,6 +26,12 @@ namespace WulfPack.RuneCompass;
 /// candidate keeps this to one read per frame, and still honours the <c>m_forceEnv</c>
 /// override that <c>GetCurrentEnvironment()</c> applies - which is what makes
 /// <c>SetForceEnvironment("ThunderStorm")</c> a usable test lever.</para>
+///
+/// <para><b>Biomes are the second axis.</b> <c>EnvMan.GetCurrentBiome()</c> is public and
+/// returns the <c>Heightmap.Biome</c> flags enum, so a whole set of biomes collapses to one
+/// mask and one bitwise test. This exists because the Mistlands should disturb a compass
+/// regardless of its weather, and "a place is hostile" is not something an environment name
+/// can express.</para>
 /// </remarks>
 internal sealed class StormProvider
 {
@@ -41,7 +47,7 @@ internal sealed class StormProvider
     /// Whether the current environment is in <paramref name="stormNames"/>. False when the
     /// world is not loaded, which is also the state in which no HUD exists to disturb.
     /// </summary>
-    public bool IsStorm(IReadOnlyList<string> stormNames)
+    public bool IsStorm(IReadOnlyList<string> stormNames, Heightmap.Biome stormBiomes)
     {
         EnvMan? env = EnvMan.instance;
         if (env == null)
@@ -50,6 +56,17 @@ internal sealed class StormProvider
         }
 
         LogEnvironmentsOnce(env);
+
+        // Two independent axes, because they answer different questions. Weather is
+        // transient and named; a biome is a place. The Mistlands is not stormy weather -- it
+        // is permanently hostile to an instrument - so no environment name would ever have
+        // caught it, and adding its three environments to the name list would have been a
+        // biome test written in the wrong vocabulary.
+        if (stormBiomes != Heightmap.Biome.None
+            && (env.GetCurrentBiome() & stormBiomes) != Heightmap.Biome.None)
+        {
+            return true;
+        }
 
         EnvSetup? current = env.GetCurrentEnvironment();
         return current != null && Contains(stormNames, current.m_name);

@@ -11,25 +11,29 @@ namespace WulfPack.RuneCompass;
 /// Each member is a getter rather than a value so the compass always sees the current
 /// config, including edits applied at runtime by <see cref="ConfigWatcher"/>.
 ///
-/// <para><b>Two of these clamps are load-bearing</b>, and their bounds are not cosmetic
-/// defaults - see <see cref="ClampDeflection"/> and <see cref="ClampRamp"/>. Bundling the
+/// <para><b>One of these clamps is load-bearing</b>, and its bound is not a cosmetic
+/// default - see <see cref="ClampRamp"/>. Bundling the
 /// settings here rather than threading them as parameters is also what keeps the clamp in
 /// one place instead of at each call site.</para>
 /// </remarks>
 internal sealed class CompassSettings
 {
     /// <summary>
-    /// Upper bound on storm deflection, in degrees.
+    /// Upper bound on storm turbulence.
     /// </summary>
     /// <remarks>
-    /// A skin's <c>ring.png</c> bakes N/E/S/W into the card that interference rotates. Past
-    /// roughly this angle those glyphs stop reading, which is the exact legibility failure
-    /// that caused this mod to abandon the heading-up model - at heading 178 a rotating card
-    /// rendered E as a mirrored glyph and W as M. A default alone would not prevent it,
-    /// because the value is operator-editable and live-reloaded, so the bound is enforced
-    /// here rather than merely recommended.
+    /// <b>This replaces a degree cap that outlived two separate rationales.</b> A ceiling on
+    /// deflection first existed because a rotating card inverted its baked N/E/S/W glyphs;
+    /// fixing the card retired that. It was then re-justified as keeping a pointer readable
+    /// as "wandering rather than spinning" - and the operator then asked for spinning, which
+    /// retired that too. A bound argued twice and wrong twice is removed rather than argued a
+    /// third time.
+    ///
+    /// <para>What remains is a sanity bound on the one knob that scales the storm's drift,
+    /// wander and lurch together. It exists so a typo cannot produce something unwatchable,
+    /// not to protect a property of the display.</para>
     /// </remarks>
-    public const float MaxDeflectionCeiling = 35f;
+    public const float MaxTurbulence = 3f;
 
     /// <summary>
     /// Lower bound on the interference ramp, in seconds.
@@ -53,26 +57,108 @@ internal sealed class CompassSettings
     public Func<Vector2> Offset = () => Vector2.zero;
     public Func<bool> ShowReadouts = () => false;
     public Func<float> HeadingOffset = () => 0f;
-    public Func<bool> WindPointsToward = () => true;
+    public Func<bool> WindShowsSource = () => true;
     public Func<string> SelectedSkin = () => "ClassicWood";
     public Func<string> SkinsRoot = () => string.Empty;
 
     public Func<bool> InterferenceEnabled = () => true;
     public Func<IReadOnlyList<string>> StormEnvironments = () => Array.Empty<string>();
-    public Func<float> MaxDeflectionDegrees = () => 22f;
+    public Func<Heightmap.Biome> StormBiomes = () => Heightmap.Biome.None;
+    public Func<float> StormTurbulence = () => 1f;
     public Func<float> InterferenceRampSeconds = () => 4f;
+    public Func<float> InterferenceReleaseSeconds = () => 12f;
+    public Func<bool> HideShipWindIndicator = () => true;
     public Func<bool> IndependentLayerInterference = () => true;
 
-    /// <summary>Holds deflection inside the range where the card's glyphs stay readable.</summary>
-    public static float ClampDeflection(float degrees)
+    // Per-layer interference amplitude, live-tunable so a storm can be balanced by eye.
+    // There is deliberately no wind amplitude: DirectionLayer.Immune carries that invariant
+    // structurally, and a setting would turn it back into a value someone can change.
+    public Func<float> AmplitudeCamera = () => 0.85f;
+    public Func<float> AmplitudeArrow = () => 1f;
+
+    /// <summary>Keeps turbulence inside the range that still renders as weather.</summary>
+    public static float ClampTurbulence(float turbulence)
     {
-        return Mathf.Clamp(degrees, 0f, MaxDeflectionCeiling);
+        return Mathf.Clamp(turbulence, 0f, MaxTurbulence);
     }
 
-    /// <summary>Holds the ramp slow enough that the predicate's lead stays invisible.</summary>
+    /// <summary>Holds the attack slow enough that the predicate's lead stays invisible.</summary>
     public static float ClampRamp(float seconds)
     {
         return Mathf.Max(MinRampSeconds, seconds);
+    }
+
+    /// <summary>
+    /// Holds the release above a sanity minimum only.
+    /// </summary>
+    /// <remarks>
+    /// Unlike the attack, this carries no information-leak constraint: the predicate goes
+    /// false while the storm is still visibly clearing, so a slow release trails the weather
+    /// rather than anticipating it. The floor exists so a typo cannot make the compass snap
+    /// back, not to protect a property.
+    /// </remarks>
+    public static float ClampRelease(float seconds)
+    {
+        return Mathf.Max(0.5f, seconds);
+    }
+
+    /// <summary>
+    /// Holds a per-layer capture weight in [0, 1]. Above 1 the interpolation would
+    /// overshoot past the storm's own bearing, which is meaningless; below 0 it would swing
+    /// away from both.
+    /// </summary>
+    public static float ClampAmplitude(float scale)
+    {
+        return Mathf.Clamp01(scale);
+    }
+
+    /// <summary>
+    /// The biome bits, held here rather than read from <c>Heightmap.Biome</c>.
+    /// </summary>
+    /// <remarks>
+    /// <b>Duplicating an enum is normally a mistake; here it buys testability.</b>
+    /// <c>verify-local.ps1</c> runs under Windows PowerShell, whose .NET Framework runtime
+    /// cannot load <c>assembly_valheim.dll</c> at all - it uses C# 8 default interface
+    /// members, which that runtime rejects outright. Any method that so much as names a
+    /// Valheim type, in its signature or its body, is therefore unverifiable, and an
+    /// untested parser that silently produced an empty mask would disable the feature with
+    /// no symptom at all.
+    ///
+    /// <para>The duplication does not drift, because it is not trusted: the verify script
+    /// reads the real <c>Heightmap/Biome</c> enum out of the installed assembly with
+    /// Mono.Cecil - which reads metadata rather than loading it - and fails if this table
+    /// and the game disagree on any name or value.</para>
+    /// </remarks>
+    private static readonly (string Name, int Bit)[] BiomeBits =
+    {
+        ("Meadows", 1), ("Swamp", 2), ("Mountain", 4), ("BlackForest", 8),
+        ("Plains", 16), ("AshLands", 32), ("DeepNorth", 64), ("Ocean", 256),
+        ("Mistlands", 512),
+    };
+
+    /// <summary>
+    /// Parses a comma-separated list of biome names into a single flags mask.
+    /// </summary>
+    /// <remarks>
+    /// Unrecognised entries are skipped rather than throwing: this is a hand-edited file, and
+    /// one typo should cost the player that biome, not the whole feature.
+    /// </remarks>
+    public static int ParseBiomes(string csv)
+    {
+        int mask = 0;
+        foreach (string name in ParseNames(csv))
+        {
+            foreach ((string biome, int bit) in BiomeBits)
+            {
+                if (string.Equals(biome, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    mask |= bit;
+                    break;
+                }
+            }
+        }
+
+        return mask;
     }
 
     /// <summary>

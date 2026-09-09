@@ -13,6 +13,7 @@ internal sealed class CompassController : IDisposable
     private readonly WindProvider _windProvider = new();
     private readonly StormProvider _stormProvider;
     private readonly InterferenceEnvelope _envelope = new();
+    private readonly ShipWindGauge _shipWindGauge = new();
 
     private CompassUI? _ui;
     private CompassSkin? _skin;
@@ -42,6 +43,7 @@ internal sealed class CompassController : IDisposable
 
         AdvanceInterference();
         Render(heading);
+        UpdateShipWindGauge();
     }
 
     /// <summary>
@@ -55,51 +57,50 @@ internal sealed class CompassController : IDisposable
     private void AdvanceInterference()
     {
         bool storm = _settings.InterferenceEnabled()
-            && _stormProvider.IsStorm(_settings.StormEnvironments());
+            && _stormProvider.IsStorm(
+                _settings.StormEnvironments(), _settings.StormBiomes());
         _envelope.Tick(
             storm,
             Time.unscaledDeltaTime,
-            CompassSettings.ClampRamp(_settings.InterferenceRampSeconds()));
+            CompassSettings.ClampRamp(_settings.InterferenceRampSeconds()),
+            CompassSettings.ClampRelease(_settings.InterferenceReleaseSeconds()));
     }
 
     /// <summary>
     /// Hands each layer its bearing and its share of the storm displacement.
     /// </summary>
     /// <remarks>
-    /// The wind rune is handed a deflection like everything else and ignores it, because
-    /// its amplitude scale is zero. Wind is directly observable in the world - driven rain,
-    /// bent grass, a sail - so the instrument failing while observation continues is the
-    /// coherent reading.
+    /// Each layer scales the shared storm level by its own configured amplitude, so how
+    /// completely the storm takes each one over is tunable live. The wind rune is handed the
+    /// same storm state as everything else and is unmoved by it, because its supplier is
+    /// <see cref="DirectionLayer.Immune"/>. Wind is directly observable in the world - driven
+    /// rain, bent grass, a sail - so the instrument failing while observation continues is
+    /// the coherent reading.
     /// </remarks>
     private void Render(float heading)
     {
-        float max = CompassSettings.ClampDeflection(_settings.MaxDeflectionDegrees());
-        float now = Time.unscaledTime;
-        bool independent = _settings.IndependentLayerInterference();
+        StormState storm = new(
+            _envelope.Level,
+            Time.unscaledTime,
+            CompassSettings.ClampTurbulence(_settings.StormTurbulence()),
+            _settings.IndependentLayerInterference());
 
-        _ui!.SetNorth(Deflect(max, now, independent, CompassUI.CardPhaseSeed));
-        _ui.SetCameraHeading(heading, Deflect(max, now, independent, CompassUI.WedgePhaseSeed));
+        _ui!.SetCameraHeading(heading, storm);
 
         if (_facingProvider.TryGetFacingDegrees(_settings.HeadingOffset(), out float facing))
         {
-            _ui.SetFacing(facing, Deflect(max, now, independent, CompassUI.ArrowPhaseSeed));
+            _ui.SetFacing(facing, storm);
         }
 
+        // The rune marks the quarter the wind comes FROM, so it sits at the reciprocal of
+        // the toward-bearing the game reports. This is a presentation choice, not a
+        // correction: a glyph parked on the rim reads as a quarter, the way a nor'easter is
+        // named for where it blows from. An arrow would have to point the other way.
         _ui.SetWind(
             _windProvider.TryGetWindTowardDegrees(out float wind)
-                ? Bearing.Normalize(_settings.WindPointsToward() ? wind : wind + 180f)
+                ? Bearing.Normalize(_settings.WindShowsSource() ? wind + 180f : wind)
                 : null,
-            0f);
-    }
-
-    /// <summary>
-    /// The displacement for one layer. In shared mode every layer is given phase zero, so
-    /// the three disturbed layers swing together; in independent mode each carries its own.
-    /// </summary>
-    private float Deflect(float max, float now, bool independent, float phaseSeed)
-    {
-        return Interference.Deflection(
-            _envelope.Level, max, now, independent ? phaseSeed : 0f);
+            storm);
     }
 
     /// <summary>
@@ -113,8 +114,27 @@ internal sealed class CompassController : IDisposable
             && Player.m_localPlayer != null;
     }
 
+    /// <summary>
+    /// Suppresses Valheim's own ship wind gauge, which duplicates the wind rune while
+    /// aboard. Reasserted per frame because <c>Hud.UpdateShipHud</c> re-activates it.
+    /// </summary>
+    private void UpdateShipWindGauge()
+    {
+        if (_settings.HideShipWindIndicator())
+        {
+            _shipWindGauge.Hide();
+        }
+        else
+        {
+            _shipWindGauge.Restore();
+        }
+    }
+
     public void Dispose()
     {
+        // Before the UI, so the gauge is handed back even if disposing our own objects
+        // throws. It is the only vanilla state this mod holds.
+        _shipWindGauge.Restore();
         _ui?.Dispose();
         _ui = null;
     }
@@ -136,7 +156,7 @@ internal sealed class CompassController : IDisposable
             }
         }
 
-        _ui = new CompassUI(_skin);
+        _ui = new CompassUI(_skin, _settings);
         _log.LogInfo(
             _skin == null
                 ? "Rune Compass north-up HUD created (primitive)."
@@ -151,5 +171,6 @@ internal sealed class CompassController : IDisposable
     {
         _ui?.SetVisible(false);
         _envelope.Reset();
+        _shipWindGauge.Restore();
     }
 }

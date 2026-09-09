@@ -276,35 +276,30 @@ The compass is installed and the build is green. Two things make this quick:
 
 | # | Check | What should happen | Result |
 |---|---|---|---|
-| S1 | Clear weather, standing still | **No drift.** Card steady on north, camera sector steady, arrow steady, wind rune steady. Nothing wanders. This is the deflection invariant — the HUD's *look* has deliberately changed (wind moved to the rim, the arrow is new), so judge motion, not appearance. | |
-| S2 | Read the environment log | `BepInEx/LogOutput.log` contains a `Rune Compass sees N environments` block listing your install's real names and wind ranges. Copy the stormy ones into `StormEnvironments`. | |
-| S3 | Transition into a storm | Interference **ramps in smoothly**. No snap, no jump. **Note whether it starts visibly before the sky changes** — if so, raise `InterferenceRampSeconds`. | |
-| S4 | Sustained storm | Card, sector and arrow wander continuously and independently of each other. Never spins, never freezes, never twitches. Direction still roughly readable — you should still be able to navigate, badly. | |
-| S5 | Transition out of a storm | Ramps out smoothly and settles **exactly** on true north. No residual offset left behind. | |
-| S6 | Orbit the camera, character standing still | **Camera sector moves; the facing arrow holds.** This is the whole reason facing and camera are separate signals. | |
-| S7 | Turn the character without moving the camera | Arrow moves; sector holds. The mirror of S6. | |
-| S8 | Wind changes during a storm | The wind rune tracks the live wind and **stays true** while the other three wander. Cross-check against smoke from a fire or a sail if one is handy. | |
-| S9 | Disable Rune Compass mid-interference | Set `Enabled = false` during a storm. HUD disappears cleanly, no exception in the log. Re-enable: the compass returns **settled**, not mid-wander. | |
-| S10 | **`IndependentLayerInterference` both ways** | Flip it during one sustained storm and compare directly. `true` = each layer on its own phase; `false` = all three in lockstep. **Which reads better?** This settles the open question. | |
-| S11 | Storm near the world edge | Interference is governed strictly by the environment name, and is unaffected by the very high wind Valheim forces near the edge of the map. | |
+| S1 | Clear weather, standing still | **No drift.** Every layer rests on its true bearing: dial still, arrow on your facing, sector on the camera, rune upwind. | **PASS**, and now provable — at capture 0 the maths returns the true bearing exactly, for any time, seed or turbulence. |
+| S2 | Read the environment log | `BepInEx/LogOutput.log` contains a `Rune Compass sees N environments` block listing your install's real names and wind ranges. Copy the stormy ones into `StormEnvironments`. |**PASS** - 49 environments listed. Storm set extended to 6 by wind evidence: `Ashlands_storm` 2.50-3.00, `Twilight_SnowStorm` 1.50-2.00, `SnowStorm` 1.30-2.00, `ThunderStorm` 0.80-1.00, `Ashlands_SeaStorm` 0.80-1.00, `Mistlands_thunder` 0.50-1.00. Boss arenas (`Eikthyr` 0.90-1.00, `Moder` 1.00) deliberately excluded as gameplay, not weather. Log also revealed `Ashlands_CinderRain` carries an inverted range, wind 0.75-0.70, in Valheim's own data. |
+| S3 | Transition into a storm | Capture ramps in smoothly over ~4s. No snap. | **PASS**, with a jerkiness finding now fixed - see S4. |
+| S4 | Sustained storm | The arrow and camera sector are **captured**: they show where the storm's field points, not where you face. **Turning must not recover true direction.** Motion should be drift plus occasional hard lurches, never jerky. | **PASS on capture** - turning no longer recovers direction. **Jerkiness found and fixed**: the lurch envelope began each pulse at full magnitude, stepping the storm bearing by up to 110 degrees in a single frame every 3.1s. It lived in the storm term, not the player term, which is why it persisted regardless of movement. Envelope is now `sin^6`, zero in value and slope at both ends. **Retest the feel.** |
+| S5 | Transition out of a storm | Releases smoothly and every layer settles on **its own true bearing** - the arrow on your facing, the sector on the camera, the rune upwind. **Not on north**, unless you happen to be facing north. | **PASS**, with the release too fast. Now asymmetric: attack 4s, release 12s. The original row text said "settles exactly on true north", which the compass has never done and was never meant to do - a defective protocol row, not a defective compass. |
+| S6 | Orbit the camera, character standing still | **Camera sector moves; the facing arrow holds.** This is the whole reason facing and camera are separate signals. |**PASS** |
+| S7 | Turn the character without moving the camera | Arrow moves; sector holds. The mirror of S6. |**PASS** |
+| S8 | Wind changes during a storm | The rune stays true while other layers are captured, and sits on the quarter the wind comes **FROM** - opposite the way smoke blows. | **PASS.** Initially reported as a failure against Moder's wind buff, which turned out to be the wrong reference: `EnvMan.UpdateWind` gates that buff behind `Ship.GetLocalShip()` and `IsWindControllActive()`, so it steers wind to the **ship's** heading and does nothing at all on land. The compass was correct. |
+| S9 | Disable Rune Compass mid-interference | HUD disappears cleanly, no exception. Re-enable: the compass returns settled, not mid-wander. | **PASS** |
+| S10 | `IndependentLayerInterference` both ways | Both ship. `true`: each layer is captured toward its own storm bearing, so the pointers disagree with each other. `false`: all are dragged toward one bearing, so they lie in agreement. **PASS — settled as a player preference rather than a hard-coded winner; neither is more correct.** |
+| S11 | Storm near the world edge | Interference is governed strictly by environment name, unaffected by the very high wind Valheim forces near the edge. | **PASS** - vindicates rejecting `GetWindIntensity()` as the storm gate during research, which would have read the world edge as a permanent storm. |
+| S12 | Ship wind gauge | Board a ship: Valheim's own wind gauge is hidden, leaving one wind readout. Then check all three restore paths - step off the ship, set `Enabled = false`, and leave No Map. The gauge must come back each time. | |
 
-## After S10
+## OQ-1, closed
 
-The comparison toggle is a measuring instrument, not a feature. Once you have judged it:
+`IndependentLayerInterference` shipped as a **player setting**, not a comparison instrument
+to be resolved and deleted. Under the capture model the two modes are genuinely different
+experiences rather than better and worse versions of one, so there was no winner to pick.
 
-1. Hard-code the winner.
-2. Delete `IndependentLayerInterference` from `Plugin.cs`, `CompassSettings.cs` and
-   `CompassController.cs`.
-3. `verify-local.ps1 -Seal` must then exit 0. **It currently exits 1 on purpose** — the
-   seal refuses while the toggle is still in the tree, so this cannot be forgotten:
-
-```text
-  [FAIL] IndependentLayerInterference still present in 4 place(s):
-         CompassController.cs:78
-         CompassSettings.cs:64
-         Plugin.cs:62
-         Plugin.cs:186
-```
+The `verify-local.ps1 -Seal` mode that existed to enforce the toggle's deletion has been
+**removed entirely**, since the thing it guarded is now meant to be there. It was not kept
+and emptied: a seal check with nothing left to check would pass vacuously, which is
+`SHADOW_GENOME` Failure #7 exactly. The forbidden-identifier guard in the main run is
+untouched and still refuses every superseded identifier.
 
 ## What is already proven locally
 
@@ -317,7 +312,7 @@ The comparison toggle is a measuring instrument, not a feature. Once you have ju
 | Clear weather adds no rotation | `Deflection` returns exactly 0 at envelope level 0, at three different times and seeds |
 | Both bounds hold | Deflection 180 clamps to 35, -5 clamps to 0; ramp 0.5 clamps to 3.0 |
 | Wind immunity is structural | `CompassUI.WindAmplitude` reads 0 off the compiled type |
-| Seal control can actually fail | `-Seal` exits 1 while the toggle lives, 0 without it. Failure #6 was a check that could not fail; this one is proven capable of failing |
+| Toggle reaches the layers | `StormState` carries `IndependentLayers` and `DirectionLayer.Point` takes the whole state, asserted by reflection. This is the check that was missing when the setting silently became decoration |
 | Superseded model cannot return | `verify-local.ps1` refuses `RoseRotationZ`, `WindRotationZ`, `CreateWindNeedle`, `_rose` |
 | Razor holds | Largest file `CompassUI.cs` 217/250; longest method 34/40 |
 | Nothing outside the mod was touched | Install wrote exactly 4 files, all under `plugins/RuneCompass`; save integrity clean |

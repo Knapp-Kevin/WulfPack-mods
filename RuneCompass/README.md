@@ -13,10 +13,19 @@ instead, and they are ranked so the important one is obvious at a glance:
 
 | Signal | Where it is | How loud |
 |---|---|---|
-| **Which way you are facing** | a bold arrow from the centre | the primary read — the boldest thing on the dial |
-| **North and south** | the card itself, behind everything | quiet background reference |
+| **Which way you are facing** | a bold arrow from the centre | the compass's needle — the boldest thing on the dial |
+| **North and south** | printed on the card, which never moves | quiet background reference |
 | **Where the camera looks** | a faint sector behind the card | subtle; there when you want it, ignorable when you don't |
-| **Which way the wind blows** | a small rune orbiting *outside* the rim | about a third the arrow's size |
+| **Where the wind comes from** | a small rune orbiting *outside* the rim | about a third the arrow's size |
+
+It works like a normal compass: **one** moving pointer, read against a fixed graduated card.
+The difference from a real one is what the pointer shows — your facing, not north. North is
+printed on the card and stays put, which is why the card never rotates.
+
+The wind rune sits on the side the wind is **coming from**, the way a nor'easter is named for
+where it blows from rather than where it blows to. (Valheim reports wind as a
+direction-of-travel vector; the rune marks the other end of it. Set `WindShowsSource = false`
+if you would rather it sat downwind.)
 
 Your **body's facing** and your **camera's view** are separate signals, because in Valheim
 they genuinely differ: stand still and swing the camera around and the arrow holds while
@@ -41,11 +50,10 @@ card behind, camera sector fainter still, wind outside the ring and small.
 A Valheim storm is bad weather for a compass, and Rune Compass behaves like an instrument
 that is suffering rather than one that has been switched off.
 
-During a storm the **card**, the **camera sector** and the **facing arrow** drift off true,
-wandering slowly rather than spinning or twitching. The card suffers most — it is the part
-a compass's magnetism actually lives in — and the facing arrow suffers least, so the compass
-degrades without becoming useless. Interference fades in as the storm builds and fades out
-as it passes; it never snaps.
+During a storm the **camera sector** and the **facing arrow** drift off true,
+wandering slowly rather than spinning or twitching. The card itself never moves, so the
+drift is legible against it — and the printed N/E/S/W stay upright and readable throughout.
+Interference fades in as the storm builds and fades out as it passes; it never snaps.
 
 **The wind rune does not malfunction.** Wind is something you can see — driven rain, bent
 grass, a sail pulling — so it keeps telling the truth while the instrument struggles. The
@@ -175,12 +183,21 @@ confirmations from the game's own code:
 3. **Valheim's own indicator** — `Minimap.UpdateWindMarker` rotates its marker by
    `-LookRotation(GetWindDir()).eulerAngles.y`, identical to Rune Compass's mapping.
 
-**Quickest check if you ever doubt it:** open the vanilla minimap and compare its wind
-marker against the compass pointer. They are driven by the same value through the same
-formula, so they must agree. Smoke is harder to read than it sounds.
+**These proofs are about the game's API, not about where the rune is drawn.** The wind rune
+deliberately sits on the quarter the wind comes **from**, which is the *reciprocal* of the
+vector above.
 
-`WindPointsToward = false` flips to the meteorological "coming from" convention if you
-prefer it.
+That is a choice about visual grammar rather than a disagreement with the game. An arrow is a
+vector and must point downwind or it contradicts itself; a glyph parked on a compass rim is a
+*position*, and a position on a rim reads as a quarter — the direction weather arrives from.
+
+**So expect the rune to sit opposite the vanilla minimap's wind marker.** They are driven by
+the same value; the minimap draws the vector's head and Rune Compass marks its tail. If you
+would rather it sat downwind, set `WindShowsSource = false`.
+
+**Quickest check if you ever doubt the underlying value:** stand by a fire. Smoke drifts
+*downwind*, so the rune should sit on the opposite side of the dial from the way the smoke
+blows.
 
 Heading and wind calculations remain separate in code even though both drive directional UI elements.
 
