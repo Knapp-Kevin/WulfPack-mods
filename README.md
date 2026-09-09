@@ -92,12 +92,27 @@ rows for its entire life because the values it read were wrapped in bold markup,
 report it produced was hand-written instead. A gate that reports nothing has not passed —
 it has not run.
 
+It also checks that the documentation above is runnable:
+
+- **no control characters in tracked text.** Authoring escape processing turns a lost
+  backslash into a control character — a `\v` becomes a vertical tab, a `\b` a backspace, and
+  the letter goes with it. Rendered markdown still looks almost right, so this file spent
+  several commits telling readers to run a save-integrity command that did not exist, and
+  Pied Piper's README named an uninstall script that did not exist. Both looked correct
+  until the bytes were examined.
+- **every script named in a markdown file resolves to a real script.** A plain typo in a
+  documented command is the same failure reached by a different route.
+
+The reference check reads markdown only, deliberately. Source files and this gate itself
+mention `.ps1` names incidentally, and counting those would keep the parsed-nothing guard
+permanently satisfied — which is the very defect it exists to prevent.
+
 A state-touching mod additionally has to show that a session with its patches live leaves
 character and world data sound. `verify-save-integrity.ps1` makes that runnable:
 
 ```powershell
-.erify-save-integrity.ps1 -Baseline     # before playing
-.erify-save-integrity.ps1 -Compare      # after playing
+.\verify-save-integrity.ps1 -Baseline     # before playing
+.\verify-save-integrity.ps1 -Compare      # after playing
 ```
 
 It reports loss, truncation, implausible shrinkage and orphaned worlds — a `.fwl` with no
