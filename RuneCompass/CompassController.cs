@@ -14,6 +14,7 @@ internal sealed class CompassController : IDisposable
     private CompassUI? _ui;
     private CompassSkin? _skin;
     private bool _skinResolved;
+    private string _loadedSkinName = string.Empty;
 
     public CompassController(ManualLogSource log, CompassSettings settings)
     {
@@ -66,6 +67,19 @@ internal sealed class CompassController : IDisposable
 
     private void EnsureUi()
     {
+        // A skin change has to rebuild the HUD: sprites are bound to Image components at
+        // construction, so swapping the config value alone would change nothing visible.
+        // With the config watcher applying edits live, this makes comparing skins a
+        // one-second edit instead of a relaunch each.
+        string requested = _settings.SelectedSkin();
+        if (_ui != null && !string.Equals(requested, _loadedSkinName, StringComparison.Ordinal))
+        {
+            _log.LogInfo($"Rune Compass skin changed to '{requested}'; rebuilding HUD.");
+            _ui.Dispose();
+            _ui = null;
+            _skinResolved = false;
+        }
+
         if (_ui != null)
         {
             return;
@@ -74,7 +88,8 @@ internal sealed class CompassController : IDisposable
         if (!_skinResolved)
         {
             _skinResolved = true;
-            _skin = SkinLoader.Load(_settings.SkinsRoot(), _settings.SelectedSkin(), _log);
+            _loadedSkinName = requested;
+            _skin = SkinLoader.Load(_settings.SkinsRoot(), requested, _log);
             if (_skin == null)
             {
                 _log.LogInfo("Rune Compass falling back to the primitive HUD.");
@@ -85,7 +100,7 @@ internal sealed class CompassController : IDisposable
         _log.LogInfo(
             _skin == null
                 ? "Rune Compass heading-up HUD created (primitive)."
-                : $"Rune Compass heading-up HUD created (skin: {_skin.Name}).");
+                : $"Rune Compass HUD created (skin: {_skin.Name}).");
     }
 
     private void Hide()

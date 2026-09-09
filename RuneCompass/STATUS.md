@@ -11,6 +11,32 @@ replaces in No Map play. Previously it sat top-centre.
 
 Issue #4 stays **open** until the operator acceptance items are recorded.
 
+All six prepared skins now include a dedicated `heading_pointer.png`. ClassicWood remains
+the grounded dark-oak and brass baseline. The other five families were rebuilt around
+different materials, silhouettes, negative space, and pointer languages instead of
+recolouring the same disc. Heading renders above wind and now measures 2.75x to 11.02x the
+corresponding wind asset's opaque mass in the rebuilt families. Runtime loading is
+implemented on this branch, but the replacement art still requires the normal local
+rebuild and in-game review.
+
+## Visual differentiation pass
+
+Recorded 2026-09-09. This pass changes assets and skin metadata only; bearing math and
+gameplay behaviour are untouched.
+
+| Family | Distinct construction | Primary heading | Secondary wind |
+|---|---|---|---|
+| `ClassicWood` | dark oak and aged brass | broad brass needle | dark feather-spear |
+| `RuneRing` | basalt and ember-cut runes | bronze rune-blade | icy wisp |
+| `MinimalNordic` | open centre and broken iron line | ivory lozenge with ochre north tip | hairline teal arrow |
+| `KnotworkWood` | pale ash, braided iron and leather | antler spear | blue-green feather |
+| `BlackIron` | soot-dark hide and riveted forge iron | bone spear | rust-copper vane |
+| `GildedSigil` | indigo face and open-work gold | violet-inlaid ceremonial lance | cyan crescent |
+
+Every replacement layer is a centred `512 x 512` RGBA PNG with transparent corners.
+Cardinal letters are baked into each fixed north-up ring. Visual review has been performed
+at the approximate shipped HUD size; local compile and in-game review remain pending.
+
 ## What is verified
 
 Evidence gathered 2026-09-08 against the installed game
@@ -212,9 +238,9 @@ The code got simpler, not more complex:
 Every indicator is handed a world bearing and rendered at `z = -bearing`. Nothing needs to
 know where the player is looking, so adding an indicator is handing it a bearing.
 
-**No redundant heading pointer was added.** The skin's `lubber_marker.png` — a brass chevron
-drawn at the rim — becomes the rotating heading index, which is what the art already was.
-Heading and wind stay distinguishable by place and shape: rim chevron versus centre spear.
+The first north-up pass used a small rim index. The in-game screenshot showed that wind
+still carried more authored visual authority, so that decision is superseded. Heading now
+uses a dedicated broad centre needle, rendered above the slimmer wind pointer.
 
 `verify-local.ps1` was rewritten for the new model and now refuses to pass if the heading-up
 pair reappears, so a partial revert cannot pass silently.
@@ -238,15 +264,16 @@ player-facing description.
 
 - Name: Rune Compass. Primary use case: No Map navigation.
 - Core rule: direction, not hidden information.
-- Orientation: heading-up.
+- Orientation: north-up, with a static card and absolute-bearing indicators.
+- Heading is the primary signal and has its own prominent centre needle.
 - Wind is first-class, and points the direction the wind blows **toward**.
 - Skins are presentation-only and interchangeable.
 - Client-side; no save or world persistence; no GitHub Actions.
 
 ## Next
 
-1. Rebuild after the `CompassUI` / `CompassUiFactory` split.
+1. Rebuild and install the dedicated heading-needle candidate.
 2. Rerun `verify-local.ps1` and confirm Razor still passes.
-3. Complete the remaining human in-game acceptance checklist.
-4. Merge PR #9 only when those results are recorded.
-5. Start the visual/skin cycle with `ClassicWood`, then extract the loader, then prove a second skin.
+3. Confirm in game that heading remains visually primary at reduced scale and opacity.
+4. Complete the remaining human acceptance items and record them on issue #4.
+5. Merge only after those results are recorded.

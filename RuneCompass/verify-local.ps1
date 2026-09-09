@@ -151,6 +151,95 @@ Write-Host "--- row 12: derivation record (terms already pinned above) ---"
 $screenCw = [double]$mNormalize.Invoke($null, @([single](-(Invoke-F $mBearingZ 135))))
 Assert-Value "screen CW angle for bearing 135" $screenCw 135
 
+# ------------------------------------------------------------------ skins ----
+
+# A skin bundle is data, and data rots quietly: a renamed file, a typo'd manifest key or a
+# wrong-sized canvas all produce a silently unskinned or misaligned compass at runtime
+# rather than an error. The loader falls back rather than throwing, which is right for
+# players and useless for catching mistakes, so the bundles are checked here instead.
+Write-Host ""
+Write-Host "=== Skin bundles ==="
+
+$skinsRoot = Join-Path $PSScriptRoot "Assets\Skins"
+$skinDirs = @()
+if (Test-Path -LiteralPath $skinsRoot) {
+    $skinDirs = Get-ChildItem -LiteralPath $skinsRoot -Directory | Sort-Object Name
+}
+
+if ($skinDirs.Count -eq 0) {
+    Write-Host "  [FAIL] no skin folders found under Assets\Skins" -ForegroundColor Red
+    $script:Failures.Add("no skin folders")
+}
+else {
+    Write-Host ("  found {0} skin bundle(s)" -f $skinDirs.Count)
+}
+
+# The loader treats these two as mandatory; the rest are optional with a fallback.
+$requiredKeys = @("ringTexture", "windPointerTexture")
+
+foreach ($dir in $skinDirs) {
+    $name = $dir.Name
+    $manifestPath = Join-Path $dir.FullName "skin.json"
+    if (-not (Test-Path -LiteralPath $manifestPath)) {
+        Assert-Value "$name has skin.json" $false $true
+        continue
+    }
+
+    try { $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json }
+    catch {
+        Write-Host ("  [FAIL] {0}: skin.json is not valid JSON" -f $name) -ForegroundColor Red
+        $script:Failures.Add("$name skin.json parse")
+        continue
+    }
+
+    Assert-Value "$name declares a name"        ([bool]$manifest.name)                 $true
+    Assert-Value "$name defaultScale > 0"       ($manifest.defaultScale -gt 0)          $true
+
+    foreach ($key in $requiredKeys) {
+        Assert-Value "$name declares $key" ([bool]$manifest.$key) $true
+    }
+
+    # Every declared texture must exist and be a centred 512x512 RGBA canvas.
+    foreach ($key in @("baseTexture","ringTexture","headingPointerTexture","windPointerTexture","lubberMarkerTexture")) {
+        $file = $manifest.$key
+        if (-not $file) { continue }
+        $path = Join-Path $dir.FullName $file
+        if (-not (Test-Path -LiteralPath $path)) {
+            Write-Host ("  [FAIL] {0}: {1} -> {2} is missing" -f $name, $key, $file) -ForegroundColor Red
+            $script:Failures.Add("$name $key missing")
+            continue
+        }
+        $bytes = [IO.File]::ReadAllBytes($path)
+        if ($bytes.Length -lt 26 -or $bytes[1] -ne 0x50 -or $bytes[2] -ne 0x4E -or $bytes[3] -ne 0x47) {
+            Write-Host ("  [FAIL] {0}: {1} is not a PNG" -f $name, $file) -ForegroundColor Red
+            $script:Failures.Add("$name $file not png"); continue
+        }
+        $w = [BitConverter]::ToUInt32(($bytes[16..19])[3..0], 0)
+        $h = [BitConverter]::ToUInt32(($bytes[20..23])[3..0], 0)
+        $colourType = $bytes[25]
+        if ($w -ne 512 -or $h -ne 512) {
+            Write-Host ("  [FAIL] {0}: {1} is {2}x{3}, expected 512x512" -f $name, $file, $w, $h) -ForegroundColor Red
+            $script:Failures.Add("$name $file size")
+        }
+        else {
+            # What matters is an alpha channel, not a specific encoding: a layer without one
+            # renders opaque corners over the world. RGBA (6) and grey+alpha (4) carry alpha
+            # directly; indexed colour (3) carries it in a tRNS chunk. Anything else does not.
+            $hasTrns = $false
+            $head = [Text.Encoding]::ASCII.GetString($bytes[0..([Math]::Min(4095, $bytes.Length - 1))])
+            if ($head -match 'tRNS') { $hasTrns = $true }
+            $hasAlpha = ($colourType -eq 6) -or ($colourType -eq 4) -or ($colourType -eq 3 -and $hasTrns)
+            if (-not $hasAlpha) {
+                Write-Host ("  [FAIL] {0}: {1} has no alpha channel (colour type {2}); corners would render opaque" -f $name, $file, $colourType) -ForegroundColor Red
+                $script:Failures.Add("$name $file no alpha")
+            }
+        }
+    }
+
+    $heading = if ($manifest.headingPointerTexture) { "own heading art" } else { "primitive heading fallback" }
+    Write-Host ("  [PASS] {0,-14} scale {1,-5} {2}" -f $name, $manifest.defaultScale, $heading)
+}
+
 # ------------------------------------------------------------------ razor ----
 
 Write-Host ""

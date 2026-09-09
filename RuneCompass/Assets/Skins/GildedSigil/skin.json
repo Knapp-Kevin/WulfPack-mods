@@ -1,0 +1,17 @@
+{
+  "name": "Gilded Sigil",
+  "description": "An open-work gold sigil over deep indigo, built as a seer's ceremonial instrument.",
+  "baseTexture": "base.png",
+  "ringTexture": "ring.png",
+  "headingPointerTexture": "heading_pointer.png",
+  "windPointerTexture": "wind_pointer.png",
+  "lubberMarkerTexture": "lubber_marker.png",
+  "defaultScale": 0.74,
+  "notes": "All layers use a centered 512 x 512 RGBA canvas. Cardinal letters are baked into the fixed open-work ring. The violet-inlaid ceremonial lance has 4.23x the opaque mass of the cyan wind crescent.",
+  "orientationConventions": {
+    "ring": "Static north-up open-work card. N is baked into the upper gold crown.",
+    "headingPointer": "The broad gold flame-lance points to 12 o'clock at heading 0. Its violet boss is centered at (0.5, 0.5); rotate it by pure player world bearing.",
+    "windPointer": "The slim cyan crescent points to 12 o'clock at wind bearing 0. Its pivot is centered at (0.5, 0.5); rotate it by pure wind-toward world bearing.",
+    "lubberMarker": "Optional static top accent for the north index. It does not replace the heading pointer."
+  }
+}
