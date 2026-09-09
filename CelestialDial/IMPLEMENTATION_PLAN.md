@@ -16,7 +16,29 @@ Before implementation, verify against the installed Valheim 1.0 assemblies:
 
 Do not freeze older `EnvMan` assumptions without checking the current assemblies.
 
-**Exit:** documented API seams with evidence from Valheim 1.0.
+### Discovery probe
+
+Run the repository-owned read-only probe from the repository root:
+
+```powershell
+.\CelestialDial\discover-time-api.ps1
+```
+
+If Valheim is installed somewhere the Steam/registry discovery does not find:
+
+```powershell
+.\CelestialDial\discover-time-api.ps1 -ValheimRoot "D:\SteamLibrary\steamapps\common\Valheim"
+```
+
+To keep a local evidence file without committing machine-specific output:
+
+```powershell
+.\CelestialDial\discover-time-api.ps1 -OutFile ".\celestial-dial-api-discovery.txt"
+```
+
+The probe records the installed `assembly_valheim.dll` SHA-256 and enumerates exact matching members on `EnvMan`, `Hud`, and `Minimap`. It explicitly reports whether the historical `GetCurrentDay` and `m_smoothDayFraction` candidates still exist, but **presence is not semantic proof**. The in-game pass must still establish that the selected members mean what Celestial Dial needs across a real day/night cycle and time skips.
+
+**Exit:** documented API seams with evidence from Valheim 1.0, including the installed assembly hash and runtime semantic confirmation.
 
 ## Gate 1: read-only technical proof
 
@@ -31,17 +53,20 @@ Build the smallest functional surface:
 
 **Exit:** local build/load/lifecycle containment passes and in-game values behave correctly across at least one complete day/night transition.
 
-## Gate 2: minimap toggle
+## Gate 2: persistent instrument toggle
 
-Add the product interaction without skin complexity:
+Add the product interaction without skin complexity. The toggle is its own HUD affordance rather than a child of the minimap surface so it remains available when the map itself is absent.
 
-- anchor a Celestial Dial panel to the minimap region
+- anchor a Celestial Dial panel to the minimap/instrument region
 - add one small map/dial toggle control near the upper-right of that region
 - preserve the minimap object and its state
+- in a normal map world, switch between minimap and Celestial Dial
+- in No Map play with Rune Compass installed, switch between Rune Compass and Celestial Dial while keeping the toggle visible
+- keep Rune Compass and Celestial Dial independently installable; optional interop must fail safely when the sibling mod is absent
 - ensure repeated toggling does not leak UI objects or duplicate callbacks
 - survive HUD recreation, world changes, and configuration reloads
 
-**Exit:** map and dial switch predictably without affecting map behavior.
+**Exit:** map/dial and Rune Compass/dial switching behave predictably without destroying sibling UI state or making the toggle disappear.
 
 ## Gate 3: semantic dial
 
@@ -84,6 +109,7 @@ Validate:
 - sleep/time skips do not leave the indicator stale
 - multiplayer client behavior remains correct
 - map/dial toggle is responsive at common UI scales
+- No Map + Rune Compass switching preserves the persistent toggle
 - no hidden information is introduced
 - no persistent game state changes
 - disable, enable, and uninstall leave vanilla UI and saves intact
