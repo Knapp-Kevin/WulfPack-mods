@@ -5,8 +5,8 @@
 Rebased onto current `main`, compiles clean against the shipped **Valheim 1.0** assemblies,
 loads with its Harmony patches applied and no exceptions, and passes lifecycle containment.
 
-**Not yet exercised in play.** Nobody has pressed E on a tamed creature with this installed.
-The command path is verified by static analysis of the game's own code, not by observation.
+**Follow / Stay is confirmed working in play** by the operator. One defect was found in that
+pass and fixed: see "Saddle guard removed".
 
 Tier: **state-touching** (see the root README risk-tier table).
 
@@ -20,13 +20,26 @@ Tier: **state-touching** (see the root README risk-tier table).
 
 ## What the patches do
 
-| Patch | Effect |
-|---|---|
-| `Tameable.Awake` postfix | sets `m_commandable = true` on every `Tameable` |
-| `Tameable.Interact` prefix/postfix | temporarily forces `m_commandable = false` for saddled rideables, restores it afterwards |
+One patch: a `Tameable.Awake` postfix setting `m_commandable = true`, so every tame accepts
+a Follow / Stay command instead of only the prefabs authored for it.
 
-The rideable guard fails closed: if `HaveSaddle` cannot be resolved by reflection, or the
-invocation throws, commanding is suppressed rather than allowed.
+### Saddle guard removed
+
+An earlier revision also patched `Tameable.Interact` to suppress commanding whenever the
+creature carried a saddle, so as not to interfere with riding.
+
+Operator testing found the consequence: on a saddled creature, interacting with the body did
+nothing instead of toggling Follow. Their reasoning — riding is reached through the saddle,
+so the body interaction should still command — is what the game does:
+
+- `Sadle` is its own `Interactable`, with `Interact(Humanoid, bool, bool)`.
+- `Tameable.Interact` contains **no saddle or mount reference anywhere in its call graph**.
+  It does name, tamed check, effect, `Command`, message, and nothing else.
+
+The guard was therefore suppressing commands on a path that cannot mount. It could not
+protect riding, which was its whole purpose, and it did break petting on every saddled
+creature. Removed, along with the `HaveSaddle` reflection, the fail-closed catch and the
+guard state struct. Riding is untouched because this mod does not patch `Sadle`.
 
 ## Save-state analysis
 
@@ -88,10 +101,19 @@ there. `RestedWhispers` and `VidarShrugged` carry the correct form.
 
 ## Not yet done
 
-- **No in-play verification.** Pressing E on a tamed creature, confirming Follow/Stay
-  toggles, and confirming a saddled rideable is still ridden rather than commanded.
-- **No save-integrity diff across a play session with the patches live.** That is the gate
-  this tier requires, and it needs someone to play with tamed creatures present. The
-  install/uninstall diff above does not substitute for it: it proves the files are clean,
-  not that a session with active patches leaves the world unchanged.
-- The uninstall hazard above is analysed, not observed.
+- **Saddled-creature behaviour after the guard removal.** Petting a saddled creature should
+  now toggle Follow, and interacting with the saddle should still mount. Both need one pass.
+- **Non-tamed creatures unaffected** — no command prompt where there should not be one.
+- **Save-integrity diff across a play session with the patches live.** The install/uninstall
+  diff proves the files are clean, not that an active session leaves the world unchanged.
+
+## Live hazard in the operator's world
+
+A creature was commanded to **stay** during testing, so a ZDO patrol point exists in that
+world now.
+
+**Command it back to Follow before uninstalling Pied Piper.** Once the mod is gone,
+`m_commandable` reverts to the prefab value, the creature can no longer be commanded, and
+there is no way to release it from its patrol point — it stays anchored permanently.
+Commanding back to Follow calls `ResetPatrolPoint`, which clears the ZDO value; that path
+only exists while the mod is installed.
