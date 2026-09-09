@@ -16,6 +16,7 @@ public sealed class Plugin : BaseUnityPlugin
     private ConfigEntry<int> _sampleCapacity = null!;
     private ConfigEntry<bool> _sceneSnapshots = null!;
     private ConfigEntry<float> _sceneSnapshotIntervalSeconds = null!;
+    private ConfigEntry<int> _topRendererPrefabs = null!;
 
     private FrameMetrics _frameMetrics = null!;
     private ConfigWatcher? _configWatcher;
@@ -52,6 +53,13 @@ public sealed class Plugin : BaseUnityPlugin
             false,
             "Periodically count active Unity scene components. This is intentionally off by default because enumeration itself has a measurable cost.");
 
+        _topRendererPrefabs = Config.Bind(
+            "Diagnostics",
+            "TopRendererPrefabs",
+            8,
+            "How many prefabs to list when reporting renderer population, heaviest first. "
+            + "A bare renderer count says where to look but not what to do; this names the "
+            + "build pieces that dominate. Clamped between 0 and 40; 0 disables the breakdown.");
         _sceneSnapshotIntervalSeconds = Config.Bind(
             "Diagnostics",
             "SceneSnapshotIntervalSeconds",
@@ -168,20 +176,53 @@ public sealed class Plugin : BaseUnityPlugin
         }
 
         _snapshotCostWarned = true;
-        Logger.LogWarning(
-            "SceneSnapshots is ON. The scan is a main-thread stall of roughly 80-160 ms and " +
-            "will appear in the p99.9 and max frame-duration columns below it. Turn it off " +
-            "before recording any frame-duration baseline.");
+        Logger.LogInfo(
+            "SceneSnapshots is ON. The scan runs on the main thread; its measured cost is " +
+            "reported with each snapshot. Compare that figure against your frame budget " +
+            "before trusting a frame-duration tail recorded with snapshots enabled.");
     }
 
     private void ReportSceneSnapshot()
     {
-        ActiveSceneSnapshot snapshot = ActiveSceneCounter.Capture();
+        ActiveSceneSnapshot snapshot =
+            ActiveSceneCounter.Capture(Mathf.Clamp(_topRendererPrefabs.Value, 0, 40));
+
         Logger.LogInfo(
             "Active scene snapshot: " +
             $"renderers {snapshot.Renderers}, lights {snapshot.Lights}, particles {snapshot.ParticleSystems}, " +
             $"audio {snapshot.AudioSources}, colliders {snapshot.Colliders}, rigidbodies {snapshot.Rigidbodies}, " +
             $"MonoBehaviours {snapshot.MonoBehaviours}; scan cost {snapshot.ElapsedMilliseconds:F2} ms.");
+
+        ReportTopPrefabs(snapshot);
+    }
+
+    /// <summary>
+    /// Names the prefabs carrying the renderer count, so the number is a lead rather than
+    /// a statistic.
+    /// </summary>
+    private void ReportTopPrefabs(ActiveSceneSnapshot snapshot)
+    {
+        if (snapshot.TopRendererPrefabs.Count == 0)
+        {
+            return;
+        }
+
+        System.Text.StringBuilder builder = new("Renderer population by prefab: ");
+        for (int i = 0; i < snapshot.TopRendererPrefabs.Count; i++)
+        {
+            PrefabCount entry = snapshot.TopRendererPrefabs[i];
+            if (i > 0)
+            {
+                builder.Append(", ");
+            }
+
+            float share = snapshot.Renderers > 0
+                ? entry.Count * 100f / snapshot.Renderers
+                : 0f;
+            builder.Append($"{entry.Name} {entry.Count} ({share:F1}%)");
+        }
+
+        Logger.LogInfo(builder.ToString());
     }
 
     private void ResetTimers()

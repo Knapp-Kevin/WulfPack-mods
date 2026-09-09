@@ -111,17 +111,77 @@ Harmony patches, mesh batching, GPU instancing, HLOD, WearNTear suppression,
 ZSyncTransform suppression, ZDO/network interception, zone retention, prefab prewarming,
 persistent rendering cache. Gate 0 is read-only instrumentation.
 
-## Recommended first bottleneck for Gate 1
+## Gate 1 step 1: the instrument, rebuilt
 
-Chosen from the measurement, not from roadmap order.
+Gate 0 ended with a number that could not be acted on and an instrument that corrupted its
+own measurement. Both are fixed before any optimization is attempted.
 
-**Renderer count and draw-call submission.** The loaded world carries **12,274 active
-renderers** against 57 lights and 580 particle systems. Renderers outnumber every other
-tracked category by more than an order of magnitude except MonoBehaviours, and they are the
-category that scales with build size — which is the stated problem. The 25,750
-MonoBehaviours are worth a second look, but many are engine and UI components rather than
-per-piece build cost, so the count needs breaking down by type before it can be acted on.
+### Scan cost
 
-The honest next step is not an optimization at all: extend the snapshot to group renderers
-by prefab or material so the count becomes actionable, and make it cheap enough to run
-without destroying the measurement. Optimizing before that is guessing.
+`Resources.FindObjectsOfTypeAll<Component>()` materialised an array of every Component held
+in memory — assets and inactive objects included, not just the loaded scene — then ran seven
+type tests per element in managed code. Each category is now requested directly via
+`Object.FindObjectsByType<T>(FindObjectsInactive.Exclude, FindObjectsSortMode.None)`, which
+searches loaded scenes only and filters by type and active state natively.
+
+Counts mean what they meant before: `Exclude` reproduces the old `activeInHierarchy` filter,
+and scene-only search reproduces the old `scene.IsValid()` filter.
+
+| Scene | Gate 0 | Gate 1 | |
+|---|---|---|---|
+| Main menu (~226 renderers) | 85 - 155 ms | **1.71 - 4.07 ms** | same scene, ~40x faster |
+| Loaded world | 178 - 225 ms @ 12,274 renderers | **53.8 - 82.0 ms @ 18,355 renderers** | ~5.4x cheaper per renderer |
+
+Still not free. 54 ms is three frames at 60 fps, so snapshots remain off by default and the
+measured cost is printed with every snapshot so it can be checked against the frame budget.
+The one-time warning no longer quotes a fixed figure, because the figure now varies with
+scene size and is reported directly.
+
+### Renderer population by prefab
+
+A bare count says where to look but not what to do. Renderers are now grouped by owning
+prefab, `(Clone)` folded, heaviest first.
+
+## Gate 1 finding: the renderer population is vegetation, not structures
+
+Measured in a loaded world, 18,355 active renderers:
+
+```text
+Beech1          9152  (49.9%)
+Beech_small1    2374  (12.9%)
+Beech_small2    2342  (12.8%)
+Bush01           758   (4.1%)
+Rock_4           584   (3.2%)
+Birch1           522   (2.8%)
+RaspberryBush    470   (2.6%)
+Pickable_Stone   428   (2.3%)
+```
+
+**Half of every active renderer is one prefab: `Beech1`. Roughly 85% of the top eight is
+vegetation.** Not one player-built piece appears in the list.
+
+That contradicts the recommendation Gate 0 closed with, which was to pursue renderer count
+on the assumption it tracked build size. It does not, at least not here. Chasing mesh
+batching or instancing for build pieces would have been optimizing a population that is not
+the one on screen.
+
+### The honest caveat
+
+This measurement was taken where the session happened to be, which is forest. It shows what
+dominates *this* location; it does not yet show what dominates a large settlement, which is
+the problem the mod exists to solve. Vegetation may still dominate there, or build pieces may
+overtake it — that is exactly the question, and it is now cheap to answer.
+
+**The next measurement is the same snapshot taken standing in the large build.** If
+vegetation still leads, the target is vegetation rendering, not structures. If build pieces
+take over, the comparison between the two locations sizes the problem precisely.
+
+Nothing should be optimized until that comparison exists. The instrument is now cheap enough
+to take it without disturbing the thing being measured.
+
+## Not implemented, deliberately
+
+Harmony patches, mesh batching, GPU instancing, HLOD, WearNTear suppression,
+ZSyncTransform suppression, ZDO/network interception, zone retention, prefab prewarming,
+persistent rendering cache. Gate 1 so far is instrumentation only; no gameplay or world
+state is touched.
